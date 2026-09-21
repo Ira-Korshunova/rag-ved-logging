@@ -1,0 +1,26 @@
+# Секреты — никогда не в репозитории
+.env
+КЛЮЧ_*
+*.key
+
+# Базы данных и кеш
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+chroma_db/
+*.old
+
+# Логи
+*.jsonl
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+venv/
+.venv/
+
+# macOS
+.DS_Store

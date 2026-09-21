@@ -1,0 +1,18 @@
+# Секреты и локальные артефакты — в образ не попадают
+.env
+deploy/.env.server
+КЛЮЧ_*
+*.key
+
+# Локальные хранилища (на сервере живёт в томе /app/state)
+*.db
+*.jsonl
+*.log
+chroma_db/
+__pycache__/
+.pytest_cache/
+
+# Служебное
+.git/
+deploy/
+.DS_Store
