@@ -26,14 +26,14 @@ MCP-tools); этот кейс — отдельный урок про экспл�
 │      1. проверка кеша (SQLite, cache.py)                      │
 │      2. поиск по векторам (vector_store.py, ChromaDB)         │
 │      3. формирование промпта с контекстом                     │
-│      4. генерация ответа через LLM (qwen3.7-max, DashScope)   │
+│      4. генерация ответа через LLM (qwen3.7-flash, DashScope)   │
 │      5. сохранение ответа в кеш                                │
 └──────────────────────────────────────────────────────────────┘
 ```
 
 - **Векторное хранилище:** ChromaDB (косинусное расстояние, персистентное).
-- **Эмбеддинги:** `text-embedding-v3` через DashScope.
-- **Генерация:** `qwen3.7-max` через DashScope.
+- **Эмбеддинги:** API `qwen3.7-text-embedding` (DashScope) или локальные `BAAI/bge-m3` (sentence-transformers) — режим `EMBEDDING_PROVIDER`.
+- **Генерация:** `qwen3.7-flash` через DashScope.
 - **Кеш:** SQLite, ключ = SHA256(вопрос) → ответ + контекст.
 - **Оценка:** RAGAS (faithfulness, context precision) — опционально.
 
@@ -120,14 +120,12 @@ pip install -r requirements.txt
 ```dotenv
 OPENAI_API_KEY=sk-ws-...        # ключ DashScope (Qwen)
 OPENAI_BASE_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
-MODEL_NAME=qwen3.7-max           # генеративная модель
-EMBEDDING_MODEL=text-embedding-v3
+MODEL_NAME=qwen3.7-flash         # генеративная модель
+EMBEDDING_MODEL=qwen3.7-text-embedding # или BAAI/bge-m3 при EMBEDDING_PROVIDER=local
 TOP_K=7                         # сколько документов в контекст
 ```
 
 > Ключ один и тот же работает и для генерации, и для эмбеддингов.
-> Модель `qwen3-max` на этом ключе отдаёт 403 — поэтому стоит `qwen3.7-max`
-> (из списка `qwen3-max / qwen3.7-max / qwen3.6-plus / qwen3.6-flash`).
 
 ## Запуск
 
