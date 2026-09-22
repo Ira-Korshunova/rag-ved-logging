@@ -107,7 +107,7 @@ STATS_PAGE = """
 </style>
 </head>
 <body>
-<h1>Статистика логов (за {{ stats.period_days }} дн.)</h1>
+<h1>Статистика логов {% if stats.period_start %}(с {{ stats.period_start }} по {{ stats.period_end }}){% else %}(за {{ stats.period_days }} дн.){% endif %}</h1>
 
 <h2>Конвейер запросов (5 событий урока)</h2>
 <table>

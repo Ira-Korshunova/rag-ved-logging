@@ -240,12 +240,21 @@ class RequestLogger:
         """)
         errors = cursor.fetchone()[0]
 
+        # Точные границы периода — по реальным событиям в логе (для шапки /stats)
+        cursor.execute(f"""
+            SELECT MIN(created_at), MAX(created_at) FROM request_log
+            WHERE event = ? AND created_at >= {since}
+        """, (EVENT_RECEIVED,))
+        first_at, last_at = cursor.fetchone()
+
         conn.close()
 
         cache_share = round(100.0 * cached / answered, 1) if answered else 0.0
 
         return {
             "period_days": period_days,
+            "period_start": first_at[:10] if first_at else None,
+            "period_end": last_at[:10] if last_at else None,
             "total_requests": total,
             "accepted": accepted,
             "rejected": sum(rejected_by_reason.values()),
