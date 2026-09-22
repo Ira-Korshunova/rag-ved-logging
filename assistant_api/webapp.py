@@ -83,7 +83,7 @@ PAGE = """
   <h2>Ответ</h2>
   <div class="answer">{{ answer }}</div>
   <p class="meta">
-    Источник: {{ source }}{% if docs %} · документов в контексте: {{ docs }}{% endif %}
+    Источник: {{ src }}{% if docs %} · документов в контексте: {{ docs }}{% endif %}
     {% if request_id %} · id запроса: {{ request_id }}{% endif %}
   </p>
 {% endif %}
@@ -151,7 +151,7 @@ def ask():
         return render_template_string(
             PAGE,
             answer=result["answer"],
-            source="кеш" if result["from_cache"] else f"LLM ({result.get('model', '')})",
+            src="кеш" if result["from_cache"] else f"LLM ({result.get('model', '')})",
             docs=len(result.get("context_docs") or []),
             request_id=result.get("request_id"),
         )

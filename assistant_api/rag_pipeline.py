@@ -35,8 +35,8 @@ class RAGPipeline:
             model: модель LLM для генерации ответов. Если None — берётся MODEL_NAME из .env,
                    иначе gpt-4o-mini
         """
-        # Проверка API ключа
-        if not os.getenv("OPENAI_API_KEY"):
+        # Проверка API ключа (LLM_API_KEY или общий OPENAI_API_KEY)
+        if not (os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY")):
             raise ValueError("OPENAI_API_KEY не установлен")
 
         # Модель генерации: приоритет — аргумент, затем MODEL_NAME из .env, затем дефолт
@@ -44,9 +44,11 @@ class RAGPipeline:
         # TOP_K из .env (сколько документов отдавать в контекст)
         self.top_k = int(os.getenv("TOP_K", "3"))
 
-        # OpenAI-совместимый клиент (работает с OpenAI и DashScope/Qwen через OPENAI_BASE_URL)
-        client_kwargs = {"api_key": os.getenv("OPENAI_API_KEY")}
-        base_url = os.getenv("OPENAI_BASE_URL")
+        # OpenAI-совместимый клиент для LLM.
+        # LLM_API_KEY / LLM_BASE_URL — опциональное переопределение (например, LLM на
+        # DeepSeek при эмбеддингах на DashScope); по умолчанию берутся общие OPENAI_*.
+        client_kwargs = {"api_key": os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY")}
+        base_url = os.getenv("LLM_BASE_URL") or os.getenv("OPENAI_BASE_URL")
         if base_url:
             client_kwargs["base_url"] = base_url
         self.openai_client = OpenAI(**client_kwargs)
