@@ -61,7 +61,7 @@ JSONL-файл (`request_logs.jsonl`, строка на событие — дл�
 
 ```json
 {"request_id": "a1b2c3d4e5f6", "event": "answer_prepared", "reason": null,
- "model": "qwen3.7-max", "prompt_tokens": 812, "completion_tokens": 210,
+ "model": "qwen3.7-flash", "prompt_tokens": 812, "completion_tokens": 210,
  "duration_ms": 1830, "from_cache": false, "error": null,
  "query_masked": "Позвоните по [телефон] насчёт аккредитива", "created_at": "2026-09-19T22:41:03"}
 ```
@@ -218,15 +218,15 @@ OpenAI API или GigaChat.
 **Что сделано:**
 - RAG-ассистент на базе конвейера из занятий: векторный поиск (ChromaDB) + генерация с
   контекстом + кеш ответов (SQLite).
-- Подключён к OpenAI-совместимому API — Alibaba DashScope (Qwen): генеративная модель
-  `qwen3.7-max`, эмбеддинги `text-embedding-v3`, по одному API-ключу.
+- Подключён к OpenAI-совместимому API — Alibaba DashScope (Qwen): генерация
+  `qwen3.7-flash`; эмбеддинги — API `qwen3.7-text-embedding` или локальные `BAAI/bge-m3`.
 - База знаний — собственные документы по ВЭД: Incoterms 2020, ТН ВЭД, таможенные
   процедуры ЕАЭС, формы международных расчётов, валютный контроль (ФЗ-173), кейс
   импортной сделки.
 - Реализована индексация всей папки документов (а не одного файла).
 - Добавлена оценка качества через RAGAS (faithfulness, context precision).
 
-**Модель:** `qwen3.7-max` (выбрана из списка `qwen3-max / qwen3.7-max / qwen3.6-plus /
-qwen3.6-flash`; `qwen3-max` на этом ключе отдаёт 403, `qwen3.7-max` — флагманская и работает).
+**Модель:** `qwen3.7-flash` (живой фритир DashScope, ~$0.03/1M входных токенов;
+эмбеддинги — API или полностью локально, без квот и внешних ключей).
 
 **Ссылка на проект:** https://github.com/Ira-Korshunova/rag-ved-logging
