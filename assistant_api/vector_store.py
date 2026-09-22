@@ -48,17 +48,27 @@ class VectorStore:
             )
             print(f"Создана новая коллекция '{collection_name}'")
         
-        # OpenAI-совместимый клиент для создания embeddings.
-        # Работает как с OpenAI, так и с любым совместимым API (DashScope/Qwen и т.п.)
-        # через OPENAI_BASE_URL из .env.
-        client_kwargs = {"api_key": os.getenv("OPENAI_API_KEY")}
-        base_url = os.getenv("OPENAI_BASE_URL")
-        if base_url:
-            client_kwargs["base_url"] = base_url
-        self.openai_client = OpenAI(**client_kwargs)
+        # Режим эмбеддингов: "api" (OpenAI-совместимый: DashScope/Qwen и т.п.)
+        # или "local" (sentence-transformers, модель качается с Hugging Face).
+        self.embedding_provider = os.getenv("EMBEDDING_PROVIDER", "api")
 
-        # Модель эмбеддингов (по умолчанию text-embedding-v3 для DashScope/Qwen)
-        self.embedding_model = os.getenv("EMBEDDING_MODEL", "text-embedding-v3")
+        if self.embedding_provider == "local":
+            # Локальная модель — ленивая загрузка при первом эмбеддинге.
+            self.openai_client = None
+            self._local_st_model = None
+            self.embedding_model = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
+        else:
+            # OpenAI-совместимый клиент для создания embeddings.
+            # Работает как с OpenAI, так и с любым совместимым API (DashScope/Qwen и т.п.)
+            # через OPENAI_BASE_URL из .env.
+            client_kwargs = {"api_key": os.getenv("OPENAI_API_KEY")}
+            base_url = os.getenv("OPENAI_BASE_URL")
+            if base_url:
+                client_kwargs["base_url"] = base_url
+            self.openai_client = OpenAI(**client_kwargs)
+
+            # Модель эмбеддингов (по умолчанию text-embedding-v3 для DashScope/Qwen)
+            self.embedding_model = os.getenv("EMBEDDING_MODEL", "text-embedding-v3")
     
     def _chunk_text(self, text: str, chunk_size: int = 500, overlap: int = 100) -> List[str]:
         """
@@ -339,14 +349,24 @@ class VectorStore:
     
     def _create_embedding(self, text: str) -> List[float]:
         """
-        Создание векторного представления текста через OpenAI.
-        
+        Создание векторного представления текста.
+
+        Режим задаётся EMBEDDING_PROVIDER:
+            "local" — sentence-transformers (без внешних API и квот);
+            "api"   — OpenAI-совместимый клиент (DashScope/Qwen и т.п.).
+
         Args:
             text: текст для векторизации
-            
+
         Returns:
             вектор embeddings
         """
+        if self.embedding_provider == "local":
+            if self._local_st_model is None:
+                from sentence_transformers import SentenceTransformer
+                print(f"Загрузка локальной модели эмбеддингов {self.embedding_model}...")
+                self._local_st_model = SentenceTransformer(self.embedding_model)
+            return self._local_st_model.encode(text, normalize_embeddings=True).tolist()
         response = self.openai_client.embeddings.create(
             input=text,
             model=self.embedding_model

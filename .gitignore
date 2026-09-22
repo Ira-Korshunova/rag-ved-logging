@@ -24,4 +24,5 @@ venv/
 
 # macOS
 .DS_Store
+chroma_db_local/
 chroma_db_v3_backup/
