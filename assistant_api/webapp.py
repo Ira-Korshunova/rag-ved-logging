@@ -138,6 +138,7 @@ BASE_CSS = """
     font-family: -apple-system, "Segoe UI", sans-serif;
     max-width: 46rem; margin: 0 auto; padding: 2.2rem 1rem 3rem;
     color: var(--ink); line-height: 1.55; position: relative; min-height: 100vh;
+    overflow-x: hidden; overflow-wrap: break-word;
   }
   body::before {
     content: ""; position: fixed; inset: 0; z-index: -1;
@@ -146,11 +147,13 @@ BASE_CSS = """
   }
   h1 { font-size: 1.5rem; margin: 0; letter-spacing: -.01em; }
   h2 { font-size: 1.05rem; margin: 1.6rem 0 .5rem; }
+  p { margin: .45rem 0; }
   button, .btn {
     font: inherit; font-weight: 600; cursor: pointer; border: 0; border-radius: 6px;
     background: #DACDBE; color: #3A2A18; padding: .55rem 1.3rem; text-decoration: none;
   }
   button:hover, .btn:hover { background: #CDBFB0; }
+  button[disabled] { opacity: .65; cursor: default; }
   .badge {
     font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
     color: var(--brown); border: 1px solid var(--brown-soft);
@@ -161,7 +164,7 @@ BASE_CSS = """
     border: 1px solid var(--card-line); border-radius: 6px; padding: .2rem .65rem;
     text-decoration: none;
   }
-  .chip b { color: var(--ink); font-weight: 600; }
+  .chip b { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
   .card {
     background: var(--card); backdrop-filter: blur(12px);
     border: 1px solid var(--card-line); border-radius: 8px;
@@ -169,7 +172,8 @@ BASE_CSS = """
   }
   .muted { color: var(--muted); }
   .good { color: var(--good); font-weight: 600; }
-  a { color: var(--brown); text-underline-offset: 3px; }
+  .lead { color: var(--muted); }
+  a { color: var(--brown); text-underline-offset: 3px; max-width: 100%; }
 """
 TABLE_CSS = """
   .tiles {
@@ -181,17 +185,18 @@ TABLE_CSS = """
     border: 1px solid var(--card-line); border-radius: 8px; padding: .8rem .95rem;
     box-shadow: var(--shadow);
   }
-  .tile .n { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .tile .n { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   .tile .l { color: var(--muted); font-size: .78rem; margin-top: .15rem; }
+  .tablewrap { overflow-x: auto; margin: .4rem 0 1.1rem; -webkit-overflow-scrolling: touch; }
   table {
-    border-collapse: collapse; width: 100%; margin: .4rem 0 1.1rem;
+    border-collapse: collapse; width: 100%; margin: 0;
     background: var(--card); backdrop-filter: blur(12px);
     border: 1px solid var(--card-line); border-radius: 8px; overflow: hidden;
     box-shadow: var(--shadow); font-variant-numeric: tabular-nums;
   }
-  td, th { border-bottom: 1px solid rgba(139, 90, 43, .14); padding: .5rem .75rem; text-align: left; }
+  td, th { border-bottom: 1px solid rgba(139, 90, 43, .14); padding: .5rem .75rem; text-align: left; overflow-wrap: anywhere; }
   tr:last-child td { border-bottom: 0; }
-  th { background: rgba(139, 90, 43, .1); font-size: .82rem; font-weight: 600; color: var(--muted); }
+  th { background: rgba(139, 90, 43, .1); font-size: .82rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
   .reason {
     display: inline-block; font-size: .78rem; background: rgba(139, 90, 43, .1);
     color: var(--muted); border-radius: 6px; padding: .15rem .6rem; margin: .1rem .25rem .1rem 0;
@@ -206,7 +211,7 @@ PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ассистент по ВЭД</title>
 <style>""" + BASE_CSS + """
-  /* витрина — две панели на весь экран (как сплит в редакторе кода) */
+  /* витрина — две панели (как сплит в редакторе), шина контента до 1200px */
   html, body { height: 100%; }
   body {
     max-width: none; margin: 0; padding: 0; min-height: 0;
@@ -214,65 +219,77 @@ PAGE = """<!doctype html>
     background: #EFE7DA;
   }
   .bar {
-    display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap;
-    padding: .8rem 1.2rem; flex: 0 0 auto;
+    flex: 0 0 auto;
     background: var(--card); backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--card-line);
   }
+  .bar-in {
+    max-width: 1200px; margin: 0 auto; padding: .8rem 1.2rem;
+    display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap;
+  }
   .bar h1 { font-size: 1.25rem; }
-  .split { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; }
-  .col { min-width: 0; overflow-y: auto; padding: 1.1rem 1.2rem; }
-  .col-left { border-right: 1px solid var(--card-line); display: flex; flex-direction: column; }
-  .col-right { display: flex; flex-direction: column; }
+  .lead { font-size: .9rem; margin: 0; }
+  .split {
+    flex: 1 1 auto; min-height: 0; width: 100%; max-width: 1200px; margin: 0 auto;
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .col { min-width: 0; overflow-y: auto; padding: 1.2rem 1.3rem; }
+  .col-left { border-right: 1px solid var(--card-line); }
   .pane h2 { margin: 0 0 .55rem; }
-  .lead { color: var(--muted); font-size: .9rem; margin: .3rem 0 0; }
-  .askform { flex: 1 1 auto; display: flex; flex-direction: column; margin-top: 1rem; }
-  .askform textarea { flex: 1 1 auto; }
+  .pane h2 + .meta { margin-top: 0; margin-bottom: .55rem; }
+  #wait {
+    margin: 0 0 .8rem; padding: .7rem .95rem; border-radius: 6px;
+    background: rgba(119, 87, 58, .1); border: 1px solid var(--brown-soft);
+    color: var(--ink); font-size: .88rem;
+  }
   textarea {
-    width: 100%; min-height: 6rem; resize: none; font: inherit;
+    display: block; width: 100%; min-height: 8rem; resize: vertical; font: inherit;
     border: 1px solid var(--brown-soft); border-radius: 6px; padding: .7rem .85rem;
-    background: rgba(255,255,255,.75); color: var(--ink);
+    background: rgba(255,255,255,.75); color: var(--ink); line-height: 1.5;
   }
   textarea:focus { outline: 2px solid var(--brown); outline-offset: 1px; }
   .row { display: flex; align-items: center; gap: .8rem; margin-top: .7rem; flex-wrap: wrap; }
   .hint { color: var(--muted); font-size: .82rem; }
-  #wait {
-    margin-bottom: 1rem; padding: .8rem 1rem; border-radius: 6px;
-    background: rgba(119, 87, 58, .1); border: 1px solid var(--brown-soft);
-    color: var(--ink); font-size: .9rem;
+  .examples {
+    margin: 1rem 0 0; display: flex; align-items: center; flex-wrap: wrap; gap: .45rem;
   }
-  .examples { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: .45rem; margin-top: .9rem; }
-  .examples .chip { cursor: pointer; font: inherit; font-size: .78rem; border: 1px solid var(--card-line); background: var(--chip); color: var(--muted); }
+  .examples .chip { cursor: pointer; font: inherit; font-size: .78rem; }
   .examples .chip:hover { background: #EFE9DE; }
   .examples .label { font-size: .82rem; color: var(--muted); }
   .examples form { display: inline; margin: 0; }
-  .note { margin-top: .7rem; color: var(--muted); font-size: .78rem; }
-  .answer { background: var(--card); backdrop-filter: blur(12px);
+  .note { margin: .9rem 0 0; color: var(--muted); font-size: .78rem; }
+  .answer {
+    background: var(--card); backdrop-filter: blur(12px);
     border: 1px solid var(--card-line); border-radius: 8px;
-    padding: 1rem 1.1rem; white-space: pre-wrap; box-shadow: var(--shadow);
-    flex: 0 1 auto; }
+    padding: 1rem 1.1rem; white-space: pre-wrap; overflow-wrap: anywhere;
+    box-shadow: var(--shadow); font-size: .95rem;
+  }
   .answer.empty { color: var(--muted); }
   .meta { display: flex; gap: .45rem; margin-top: .55rem; flex-wrap: wrap; }
   .error { color: var(--danger); font-size: .95rem; }
-  @media (max-width: 52rem) {
+  @media (max-width: 820px) {
     body { overflow: auto; min-height: 100vh; height: auto; }
-    .split { grid-template-columns: 1fr; }
-    .col { overflow-y: visible; }
-    .col-left { border-right: 0; border-bottom: 1px solid var(--card-line); min-height: 16rem; }
+    .split { grid-template-columns: minmax(0, 1fr); }
+    .col { overflow-y: visible; padding: 1rem; }
+    .col-left { border-right: 0; border-bottom: 1px solid var(--card-line); }
+    .bar-in { padding: .7rem 1rem; }
+    textarea { min-height: 6rem; }
   }
 </style>
 </head>
 <body>
 <div class="bar">
-  <h1>ИИ-ассистент для ВЭД</h1>
-  <span class="lead">Таможня, Incoterms, ТН ВЭД, формы расчётов, валютный контроль</span>
-  <a class="chip" href="/about">как работает</a>
+  <div class="bar-in">
+    <h1>ИИ-ассистент для ВЭД</h1>
+    <span class="lead">Таможня, Incoterms, ТН ВЭД, формы расчётов, валютный контроль</span>
+    <a class="chip" href="/about">как работает</a>
+  </div>
 </div>
 
 <div class="split">
   <div class="col col-left">
     <div id="wait" hidden>Ищу ответ в базе — обычно 20–60 секунд. Страница не зависла, просто ждём модель.</div>
-    <form class="card askform" method="post" action="/ask">
+    <form class="card" method="post" action="/ask">
       <textarea name="query" placeholder="Ваш вопрос по ВЭД…" required>{{ query_text }}</textarea>
       <div class="row">
         <button type="submit">Спросить</button>
@@ -295,7 +312,7 @@ PAGE = """<!doctype html>
   <div class="col col-right pane">
     {% if answer %}
       <h2>Ответ</h2>
-      {% if from_cache %}<div class="meta" style="margin-top: 0; margin-bottom: .55rem"><span class="chip good">из кеша — ответ мгновенный, без расхода токенов</span></div>{% endif %}
+      {% if from_cache %}<div class="meta"><span class="chip good">из кеша — ответ мгновенный, без расхода токенов</span></div>{% endif %}
       <div class="answer">{{ answer }}</div>
       {% if sources %}
         <div class="meta"><span class="chip">источники: <b>{% for s in sources %}{{ s }}{% if not loop.last %}, {% endif %}{% endfor %}</b></span></div>
@@ -462,7 +479,7 @@ ADMIN_PAGE = """<!doctype html>
   <div class="tile"><div class="n">{{ stats.cache_share_pct }}%</div><div class="l">ответов из кеша</div></div>
   <div class="tile"><div class="n">{{ stats.avg_duration_ms or '—' }}<span style="font-size:.6em{% if stats.avg_duration_ms %}; margin-left:.2em{% endif %}">{% if stats.avg_duration_ms %}мс{% endif %}</span></div><div class="l">средняя длительность</div></div>
 </div>
-<table>
+<div class="tablewrap"><table>
   <tr><th>Показатель</th><th>Значение</th></tr>
   <tr><td>Запросов получено</td><td>{{ stats.total_requests }}</td></tr>
   <tr><td>Принято</td><td class="good">{{ stats.accepted }}</td></tr>
@@ -474,11 +491,11 @@ ADMIN_PAGE = """<!doctype html>
   <tr><td>Из кеша</td><td>{{ stats.cache_hits }} ({{ stats.cache_share_pct }}%)</td></tr>
   <tr><td>Средняя длительность</td><td>{{ stats.avg_duration_ms or '—' }} мс</td></tr>
   <tr><td>Ошибок</td><td>{{ stats.errors }}</td></tr>
-</table>
+</table></div>
 
 <h2>Последние события конвейера</h2>
 {% if feed %}
-<table>
+<div class="tablewrap"><table>
   <tr><th>Время</th><th>Событие</th><th>Источник</th><th>Вопрос</th><th>Кеш</th><th>мс</th><th>Заметка</th></tr>
   {% for e in feed %}
   <tr {% if e.error %}class="err-row"{% endif %}>
@@ -491,7 +508,7 @@ ADMIN_PAGE = """<!doctype html>
     <td>{% if e.error %}⚠ {{ e.error }}{% elif e.reason %}{{ e.reason }}{% else %}—{% endif %}</td>
   </tr>
   {% endfor %}
-</table>
+</table></div>
 {% else %}
 <p class="muted">События пока не записывались.</p>
 {% endif %}
@@ -526,7 +543,7 @@ STATS_PAGE = """<!doctype html>
 </div>
 
 <h2>Конвейер запросов (5 событий урока)</h2>
-<table>
+<div class="tablewrap"><table>
   <tr><th>Показатель</th><th>Значение</th></tr>
   <tr><td>Запросов получено</td><td>{{ stats.total_requests }}</td></tr>
   <tr><td>Принято</td><td class="good">{{ stats.accepted }}</td></tr>
@@ -538,17 +555,17 @@ STATS_PAGE = """<!doctype html>
   <tr><td>Из кеша</td><td>{{ stats.cache_hits }} ({{ stats.cache_share_pct }}%)</td></tr>
   <tr><td>Средняя длительность</td><td>{{ stats.avg_duration_ms or '—' }} мс</td></tr>
   <tr><td>Ошибок</td><td>{{ stats.errors }}</td></tr>
-</table>
+</table></div>
 
 <h2>Токены по моделям</h2>
-<table>
+<div class="tablewrap"><table>
   <tr><th>Модель</th><th>Prompt</th><th>Completion</th></tr>
   {% for model, tok in stats.tokens_by_model.items() %}
   <tr><td>{{ model }}</td><td>{{ tok.prompt }}</td><td>{{ tok.completion }}</td></tr>
   {% else %}
   <tr><td colspan="3">Нет данных за период</td></tr>
   {% endfor %}
-</table>
+</table></div>
 
 <footer><a class="btn" href="/">← К ассистенту</a></footer>
 </body>
