@@ -296,6 +296,17 @@ class RequestLogger:
 
         cache_share = round(100.0 * cached / answered, 1) if answered else 0.0
 
+        # Стоимость генерации: тарифы в .env (дол. за 1 млн токенов),
+        # считаем по сумме токенов всех моделей за тот же период
+        try:
+            rate_in = float(os.getenv("LLM_COST_PER_M_INPUT", "0.28"))
+            rate_out = float(os.getenv("LLM_COST_PER_M_OUTPUT", "0.42"))
+        except ValueError:
+            rate_in, rate_out = 0.28, 0.42
+        total_prompt = sum(t["prompt"] for t in tokens_by_model.values())
+        total_completion = sum(t["completion"] for t in tokens_by_model.values())
+        cost_usd = (total_prompt * rate_in + total_completion * rate_out) / 1e6
+
         return {
             "period_days": period_days,
             "period_start": first_at[:10] if first_at else None,
@@ -312,12 +323,18 @@ class RequestLogger:
             "cache_share_pct": cache_share,
             "avg_duration_ms": round(avg_duration) if avg_duration else None,
             "tokens_by_model": tokens_by_model,
+            "total_prompt_tokens": total_prompt,
+            "total_completion_tokens": total_completion,
+            "cost_usd": round(cost_usd, 4),
             "errors": errors,
         }
 
-    def get_recent(self, limit: int = 25) -> Dict[str, Any]:
+    def get_recent(self, limit: int = 25, days: int = None) -> Dict[str, Any]:
         """
         Последние события конвейера (для веб-панели оператора).
+
+        days — фильтр по периоду (например, выбранный в панели оператора:
+        1 / 7 / 30 дней); None — без ограничения по времени.
 
         Возвращает события в обратном хронологическом порядке: время,
         событие, источник, замаскированный фрагмент вопроса, из кеша,
@@ -326,14 +343,19 @@ class RequestLogger:
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        cursor.execute("""
+        sql = """
             SELECT created_at, event, COALESCE(source, 'unknown'),
                    query_masked, from_cache, duration_ms, reason, error,
                    model, prompt_tokens, completion_tokens
             FROM request_log
-            ORDER BY id DESC
-            LIMIT ?
-        """, (limit,))
+        """
+        params = []
+        if days:
+            sql += " WHERE created_at >= datetime('now', ?)"
+            params.append(f"-{days} days")
+        sql += " ORDER BY id DESC LIMIT ?"
+        params.append(limit)
+        cursor.execute(sql, params)
         rows = cursor.fetchall()
         conn.close()
         events = []

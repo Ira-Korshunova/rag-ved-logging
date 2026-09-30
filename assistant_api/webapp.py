@@ -209,131 +209,151 @@ PAGE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ассистент по ВЭД</title>
+<title>ИИ-ассистент для ВЭД</title>
 <style>""" + BASE_CSS + """
-  /* витрина — две панели (как сплит в редакторе), шина контента до 1200px */
+  /* витрина в паттерне Perplexity: шапка, форма по центру, ответ под ней */
   html, body { height: 100%; }
   body {
-    max-width: none; margin: 0; padding: 0; min-height: 0;
-    display: flex; flex-direction: column; overflow: hidden;
+    max-width: none; margin: 0; padding: 0;
+    display: flex; flex-direction: column;
     background: #EFE7DA;
   }
   .bar {
-    flex: 0 0 auto;
-    background: var(--card); backdrop-filter: blur(12px);
+    position: sticky; top: 0; z-index: 10; flex: 0 0 auto;
+    background: rgba(239, 231, 218, .55); backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--card-line);
   }
   .bar-in {
-    max-width: 1200px; margin: 0 auto; padding: .8rem 1.2rem;
-    display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap;
+    max-width: 62rem; margin: 0 auto; padding: .65rem 1.2rem;
+    display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap;
   }
-  .bar h1 { font-size: 1.25rem; }
-  .lead { font-size: .9rem; margin: 0; }
-  .split {
-    flex: 1 1 auto; min-height: 0; width: 100%; max-width: 1200px; margin: 0 auto;
-    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  .bar h1 { font-size: 1.1rem; margin: 0; letter-spacing: -.01em; margin-right: auto; }
+  a { color: var(--brown); text-underline-offset: 3px; }
+  .bar-in a {
+    text-decoration: none; font-weight: 600; font-size: .8rem; color: var(--brown);
+    border: 1px solid rgba(119, 87, 58, .12); border-radius: 3px;
+    background: transparent; padding: .2rem .6rem;
+    width: 6rem; text-align: center; box-sizing: border-box; flex: 0 0 auto;
   }
-  .col { min-width: 0; overflow-y: auto; padding: 1.2rem 1.3rem; }
-  .col-left { border-right: 1px solid var(--card-line); }
-  .pane h2 { margin: 0 0 .55rem; }
-  .pane h2 + .meta { margin-top: 0; margin-bottom: .55rem; }
-  #wait {
-    margin: 0 0 .8rem; padding: .7rem .95rem; border-radius: 6px;
-    background: rgba(119, 87, 58, .1); border: 1px solid var(--brown-soft);
-    color: var(--ink); font-size: .88rem;
+  .bar-in a:hover { border-color: rgba(119, 87, 58, .25); }
+  main {
+    width: 100%; max-width: 62rem; margin: 0 auto; padding: 1.6rem 1.2rem 1.2rem;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .ask {
+    width: 100%; max-width: 40rem;
+    background: var(--card); backdrop-filter: blur(12px);
+    border: 1px solid var(--card-line); border-radius: 4px;
+    padding: .9rem 1rem; box-shadow: var(--shadow);
   }
   textarea {
-    display: block; width: 100%; min-height: 8rem; resize: vertical; font: inherit;
-    border: 1px solid var(--brown-soft); border-radius: 6px; padding: .7rem .85rem;
-    background: rgba(255,255,255,.75); color: var(--ink); line-height: 1.5;
+    display: block; width: 100%; min-height: 5.4rem; resize: vertical;
+    font: inherit; border: 1px solid var(--brown-soft); border-radius: 0;
+    padding: .7rem .85rem; background: rgba(255,255,255,.75); color: var(--ink);
   }
   textarea:focus { outline: 2px solid var(--brown); outline-offset: 1px; }
-  .row { display: flex; align-items: center; gap: .8rem; margin-top: .7rem; flex-wrap: wrap; }
-  .hint { color: var(--muted); font-size: .82rem; }
-  .examples {
-    margin: 1rem 0 0; display: flex; align-items: center; flex-wrap: wrap; gap: .45rem;
+  .row { display: flex; align-items: center; gap: .9rem; margin-top: .7rem; flex-wrap: wrap; }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer; border: 0; border-radius: 8px;
+    background: #DACDBE; color: #3A2A18; padding: .55rem 1.5rem; margin-left: auto;
   }
-  .examples .chip { cursor: pointer; font: inherit; font-size: .78rem; }
-  .examples .chip:hover { background: #EFE9DE; }
-  .examples .label { font-size: .82rem; color: var(--muted); }
-  .examples form { display: inline; margin: 0; }
-  .note { margin: .9rem 0 0; color: var(--muted); font-size: .78rem; }
+  button:hover { background: #CDBFB0; }
+  button[disabled] { opacity: .6; cursor: default; }
+  #wait {
+    width: 100%; max-width: 40rem; margin-top: .9rem;
+    padding: .75rem 1rem; border-radius: 8px; font-size: .88rem;
+    background: rgba(119, 87, 58, .1); border: 1px solid var(--brown-soft);
+  }
+  #wait .dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%;
+    background: var(--brown); margin-right: .5rem; vertical-align: 1px; }
+  .answer-zone { width: 100%; max-width: 40rem; margin-top: 1.6rem; }
+  #answer { display: none; }
   .answer {
     background: var(--card); backdrop-filter: blur(12px);
-    border: 1px solid var(--card-line); border-radius: 8px;
-    padding: 1rem 1.1rem; white-space: pre-wrap; overflow-wrap: anywhere;
+    border: 1px solid var(--card-line); border-radius: 4px;
+    padding: 1.05rem 1.2rem; white-space: pre-wrap; overflow-wrap: anywhere;
     box-shadow: var(--shadow); font-size: .95rem;
   }
-  .answer.empty { color: var(--muted); }
-  .meta { display: flex; gap: .45rem; margin-top: .55rem; flex-wrap: wrap; }
-  .error { color: var(--danger); font-size: .95rem; }
-  @media (max-width: 820px) {
-    body { overflow: auto; min-height: 100vh; height: auto; }
-    .split { grid-template-columns: minmax(0, 1fr); }
-    .col { overflow-y: visible; padding: 1rem; }
-    .col-left { border-right: 0; border-bottom: 1px solid var(--card-line); }
-    .bar-in { padding: .7rem 1rem; }
-    textarea { min-height: 6rem; }
-  }
+  .meta { margin-top: .55rem; font-size: .8rem; color: var(--muted); text-align: right; }
+  .errorbox { width: 100%; max-width: 40rem; margin-top: .9rem; color: var(--danger); font-size: .92rem; }
+  footer { max-width: 62rem; margin: auto auto 0; padding: .6rem 1.2rem 1.4rem;
+    color: var(--muted); font-size: .78rem; text-align: center; }
+  @media (max-width: 640px) { main { padding: 1rem; } }
 </style>
 </head>
 <body>
 <div class="bar">
   <div class="bar-in">
     <h1>ИИ-ассистент для ВЭД</h1>
-    <span class="lead">Таможня, Incoterms, ТН ВЭД, формы расчётов, валютный контроль</span>
-    <a class="chip" href="/about">как работает</a>
+    <a href="/about">как работает</a>
   </div>
 </div>
 
-<div class="split">
-  <div class="col col-left">
-    <div id="wait" hidden>Ищу ответ в базе — обычно 20–60 секунд. Страница не зависла, просто ждём модель.</div>
-    <form class="card" method="post" action="/ask">
-      <textarea name="query" placeholder="Ваш вопрос по ВЭД…" required>{{ query_text }}</textarea>
-      <div class="row">
-        <button type="submit">Спросить</button>
-        <span class="hint">Ответ строго по базе документов — с указанием источников</span>
-      </div>
-    </form>
-
-    <div class="examples"><span class="label">Примеры:</span>
-      {% for ex in examples %}
-      <form method="post" action="/ask">
-        <input type="hidden" name="query" value="{{ ex }}">
-        <button type="submit" class="chip">{{ ex }}</button>
-      </form>
-      {% endfor %}
+<main>
+  <form class="ask" id="askform">
+    <textarea id="qbox" placeholder="Ваш вопрос по ВЭД…" required></textarea>
+    <div class="row">
+      <button type="submit" id="askbtn" aria-label="Спросить" title="Спросить">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round" style="display:block" aria-hidden="true">
+          <path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.2 2.2m8.4 8.4 2.2 2.2m0-12.8-2.2 2.2M7.8 16.2l-2.2 2.2"/>
+        </svg>
+      </button>
     </div>
-    <p class="note">Точность норм проверяйте по актуальной редакции НПА ·
-      <a href="/admin">панель оператора</a></p>
-  </div>
+  </form>
+  <div id="wait" hidden><span class="dot"></span>Ищу ответ в базе — обычно 20–60 секунд</div>
+  <div id="errbox" class="errorbox" hidden></div>
 
-  <div class="col col-right pane">
-    {% if answer %}
-      <h2>Ответ</h2>
-      {% if from_cache %}<div class="meta"><span class="chip good">из кеша — ответ мгновенный, без расхода токенов</span></div>{% endif %}
-      <div class="answer">{{ answer }}</div>
-      {% if sources %}
-        <div class="meta"><span class="chip">источники: <b>{% for s in sources %}{{ s }}{% if not loop.last %}, {% endif %}{% endfor %}</b></span></div>
-      {% endif %}
-    {% elif error %}
-      <h2>Ответ</h2>
-      <p class="error">{{ error }}</p>
-    {% else %}
-      <h2>Ответ</h2>
-      <div class="answer empty">Здесь появится ответ — с указанием документов, по которым он собран.</div>
-    {% endif %}
+  <div class="answer-zone">
+    <div id="answer">
+      <div class="answer" id="answertext"></div>
+      <div class="meta" id="sourceschip"></div>
+    </div>
   </div>
-</div>
+</main>
+
+<footer>Точность норм проверяйте по актуальной редакции НПА</footer>
+
 <script>
-// Пока идёт генерация: надпись «не зависло» + кнопки в неактивное состояние
-document.querySelectorAll('form[action="/ask"]').forEach(function (f) {
-  f.addEventListener('submit', function () {
-    var b = f.querySelector('button[type=submit]');
-    if (b) { b.disabled = true; b.textContent = 'Ищу в базе…'; }
-    var w = document.getElementById('wait');
-    if (w) { w.hidden = false; w.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+// запрос к /ask без перезагрузки страницы; на время генерации — искра крутится
+var form = document.getElementById('askform'),
+    btn = document.getElementById('askbtn'),
+    wait = document.getElementById('wait'),
+    errbox = document.getElementById('errbox'),
+    zone = document.getElementById('answer'),
+    textEl = document.getElementById('answertext'),
+    srcEl = document.getElementById('sourceschip');
+var ICON = btn.innerHTML;
+var SPIN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+  'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block" aria-hidden="true">' +
+  '<circle cx="12" cy="12" r="9" stroke-dasharray="42" stroke-dashoffset="14"/></svg>';
+
+form.addEventListener('submit', function (e) {
+  e.preventDefault();
+  var q = document.getElementById('qbox').value.trim();
+  if (!q) return;
+  errbox.hidden = true; zone.style.display = 'none';
+  btn.disabled = true; btn.innerHTML = SPIN; wait.hidden = false;
+  fetch('/ask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded',
+               'Accept': 'application/json' },
+    body: 'query=' + encodeURIComponent(q)
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    wait.hidden = true; btn.disabled = false; btn.innerHTML = ICON;
+    if (d.error) { errbox.textContent = d.error; errbox.hidden = false; return; }
+    textEl.textContent = d.answer || '';
+    var s = (d.sources && d.sources.length) ? 'Источники: ' + d.sources.join(', ')
+      : 'Источники: в базе не нашлось документов по этому вопросу';
+    if (d.from_cache) s += ' · из кеша';
+    srcEl.textContent = s;
+    zone.style.display = 'block';
+    btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }).catch(function () {
+    wait.hidden = true; btn.disabled = false; btn.innerHTML = ICON;
+    errbox.textContent = 'Сеть недоступна — попробуйте ещё раз позже.';
+    errbox.hidden = false;
   });
 });
 </script>
@@ -436,15 +456,16 @@ ADMIN_PAGE = """<!doctype html>
 <html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Панель оператора</title>
-<style>""" + BASE_CSS + TABLE_CSS + """
+<style>""" + BASE_CSS + """
+  /* шапка на всю ширину окна */
   .bar {
     position: sticky; top: 0; z-index: 10;
     background: rgba(239, 231, 218, .55); backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--card-line);
-    margin: -2.2rem -1rem 1.2rem; padding: .65rem 1.2rem;
+    margin: -2.2rem calc(50% - 50vw) .6rem; padding: .65rem 2.4rem;
   }
   .bar-in {
-    max-width: 46rem; margin: 0 auto;
+    max-width: none; margin: 0 auto;
     display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap;
   }
   .bar h1 { font-size: 1.1rem; margin: 0; letter-spacing: -.01em; margin-right: auto; }
@@ -452,82 +473,154 @@ ADMIN_PAGE = """<!doctype html>
     text-decoration: none; font-weight: 600; font-size: .8rem; color: var(--brown);
     border: 1px solid rgba(119, 87, 58, .12); border-radius: 3px;
     background: transparent; padding: .2rem .6rem;
+    width: 6rem; text-align: center; box-sizing: border-box; flex: 0 0 auto;
   }
   .bar-in a:hover { border-color: rgba(119, 87, 58, .25); }
+  .bstats { font-size: .78rem; color: var(--muted); }
+  .bstats b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .bar-in .bstats { margin-right: 2rem; }
+  /* переключатель периода — управляет всей страницей */
+  .periods { display: inline-flex; gap: .25rem; }
+  .p {
+    font-size: .72rem; font-weight: 600; color: var(--brown);
+    border: 1px solid rgba(119, 87, 58, .12); border-radius: 3px;
+    padding: .1rem .45rem; text-decoration: none;
+  }
+  .p:hover { border-color: rgba(119, 87, 58, .25); }
+  .p.active { background: #DACDBE; color: var(--ink); border-color: transparent; }
+  /* карточки и тихие кнопки */
+  h2 { font-size: .92rem; font-weight: 600; margin: 1.05rem 0 .5rem; }
   .msg { background: rgba(74, 107, 42, .12); border: 1px solid rgba(74, 107, 42, .3);
-    color: var(--good); padding: .6rem .8rem; border-radius: 4px; margin: .7rem 0; }
+    color: var(--good); padding: .6rem .8rem; border-radius: 4px; margin: 0 0 .7rem; font-size: .8rem; }
   .bad-msg { background: rgba(166, 50, 38, .08); border: 1px solid rgba(166, 50, 38, .3);
-    color: var(--danger); padding: .6rem .8rem; border-radius: 4px; margin: .7rem 0; }
-  input[type=file] { font: inherit; font-size: .9rem; color: var(--ink); }
-  h2 { font-size: 1.02rem; margin: 1.7rem 0 .55rem; }
+    color: var(--danger); padding: .6rem .8rem; border-radius: 4px; margin: 0 0 .7rem; font-size: .8rem; }
+  .btn-quiet {
+    font-size: .8rem; font-weight: 600; background: transparent; color: var(--brown);
+    border: 1px solid rgba(119, 87, 58, .12); border-radius: 3px;
+    padding: .3rem .8rem; cursor: pointer;
+  }
+  .btn-quiet:hover { background: transparent; border-color: rgba(119, 87, 58, .25); }
+  .btn-quiet.light { font-weight: 400; }
+  .fname { font-size: .78rem; color: var(--muted); background: var(--card);
+    border: 1px solid var(--card-line); border-radius: 3px; padding: .25rem .65rem; }
+  .uprow { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; margin: 1.6rem 0 .55rem; }
+  .uprow button { margin-left: auto; font-weight: 600; font-size: .8rem; background: transparent;
+    color: var(--brown); border: 1px solid rgba(119, 87, 58, .12); border-radius: 3px; padding: .3rem .8rem; }
+  input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  label.btn-quiet { display: inline-block; cursor: pointer; }
+  /* таблицы: separate — чтобы прилипающая шапка работала */
+  table {
+    border-collapse: separate; border-spacing: 0; width: 100%; margin: 0;
+    background: var(--card); backdrop-filter: blur(12px);
+    border: 1px solid var(--card-line); border-radius: 4px;
+    box-shadow: var(--shadow); font-variant-numeric: tabular-nums;
+  }
+  td, th { border-bottom: 1px solid rgba(139, 90, 43, .14); padding: .5rem .75rem; text-align: left; overflow-wrap: anywhere; }
+  tr:last-child td { border-bottom: 0; }
+  th { background-color: #F5EFE4; font-size: .82rem; font-weight: 600; color: var(--muted); white-space: nowrap;
+    position: sticky; top: 0; z-index: 2; }
+  thead th { box-shadow: inset 0 -1px 0 rgba(139, 90, 43, .14); }
+  .reason-chip { display: inline-block; font-size: .75rem; background: rgba(139, 90, 43, .1);
+    color: var(--muted); border-radius: 3px; padding: .12rem .5rem; margin-left: .15rem; }
+  .err-row td { background: rgba(166, 50, 38, .06); }
+  /* дашборд-ряд: пополнение базы слева, статистика справа;
+     растянут на ширину ленты — края стыкуются ровно */
+  .dash {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem;
+    align-items: stretch;
+    margin: .2rem -18rem 0;
+  }
+  .dash > div { display: flex; flex-direction: column; }
+  .dash .card { flex: 1; display: flex; flex-direction: column; }
+  @media (max-width: 44rem) { .dash { grid-template-columns: 1fr; margin-left: -1rem; margin-right: -1rem; } }
+  /* компактная таблица статистики + рамка с прокруткой */
+  table.compact td, table.compact th { font-size: .8rem; padding: .22rem .7rem; }
+  table.compact th { font-size: .75rem; }
+  .statwrap { max-height: 11.5rem; overflow: auto; }
+  /* широкая лента событий: выходит за шину контента,
+     остальную высоту экрана отдаём ей — всё внутри одного экрана */
+  .tablewrap { overflow-x: auto; margin: .4rem 0 1.1rem; -webkit-overflow-scrolling: touch; }
+  .tablewrap.wide { margin: .4rem -18rem 0; flex: 1; min-height: 8rem; }
+  .wide-head { margin-left: -18rem !important; text-align: left; }
+  /* шрифт ленты — как в таблице статистики */
+  .tablewrap.wide td, .tablewrap.wide th { font-size: .8rem; padding: .42rem .7rem; }
+  /* строка расхода LLM под лентой */
+  .totals {
+    margin: -1px -18rem 0; padding: .32rem .75rem;
+    background: #F5EFE4; font-size: .78rem; color: var(--muted);
+    border: 1px solid var(--card-line); border-radius: 0 0 4px 4px;
+  }
+  .totals b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  html, body { height: 100vh; }
+  body { display: flex; flex-direction: column; padding: 2.2rem 1rem 1.2rem; }
+  @media (max-width: 44rem) {
+    .dash { margin-left: -1rem; margin-right: -1rem; }
+    .tablewrap.wide, .totals { margin-left: -1rem; margin-right: -1rem; }
+    .wide-head { margin-left: -1rem !important; }
+    html, body { height: auto; body-scroll: auto; }
+    body { height: auto; min-height: 100vh; }
+  }
 </style></head>
 <body>
 <div class="bar">
   <div class="bar-in">
     <h1>Панель оператора</h1>
-    <a href="/">← витрина</a>
+    <span class="bstats"><b>{{ stats.total_requests }}</b> запросов · <b>{{ stats.accepted }}</b> принято · <b>{{ stats.cache_share_pct }}%</b> из кеша · <b>{{ avg_sec }}</b> с среднее</span>
+    <span class="periods">{% for p, label in period_options %}<a class="p {{ 'active' if p == period else '' }}" href="/admin?period={{ p }}">{{ label }}</a>{% endfor %}</span>
+    <a href="/">ассистент</a>
     <a href="/admin?logout=1">выйти</a>
   </div>
 </div>
 
-<h2>Пополнение базы</h2>
-{% if ingest_msg %}<div class="msg">{{ ingest_msg }}</div>{% endif %}
-{% if ingest_err %}<div class="bad-msg">{{ ingest_err }}</div>{% endif %}
-<div class="card">
-<p style="margin: .2rem 0 .7rem">Файл <b>.txt</b> или <b>.md</b> (до 2 МБ). Документ будет добавлен в базу
-и доступен сразу после индексации; уже загруженные с тем же именем файлы
-не дублируются.</p>
-{% if ingesting %}
-  <p class="muted">Сейчас идёт индексация предыдущего файла — обновите страницу
-  через минуту.</p>
-{% else %}
-<form method="post" action="/admin/upload" enctype="multipart/form-data">
-  <input type="file" name="doc" accept=".txt,.md" required>
-  <p><button type="submit">Загрузить и индексировать</button></p>
-</form>
-{% endif %}
-<p class="muted" style="margin: .2rem 0 .2rem">Всего в базе: {{ chunk_count }} чанков.</p>
+<div class="dash">
+  <div>
+    <h2>Пополнение базы</h2>
+    <div class="card">
+      {% if ingest_msg %}<div class="msg">{{ ingest_msg }}</div>{% endif %}
+      {% if ingest_err %}<div class="bad-msg">{{ ingest_err }}</div>{% endif %}
+      <p style="margin: .2rem 0 .7rem; font-size: .8rem">Файл <b>.txt</b> или <b>.md</b> (до 2 МБ). Документ будет добавлен
+      в базу и доступен сразу после индексации; уже загруженные с тем же именем файлы
+      не дублируются.</p>
+      {% if ingesting %}
+        <p class="muted" style="font-size: .8rem">Сейчас идёт индексация предыдущего файла — обновите
+        страницу через минуту.</p>
+      {% else %}
+      <form method="post" action="/admin/upload" enctype="multipart/form-data">
+        <div class="uprow">
+          <input type="file" id="doc" name="doc" accept=".txt,.md" required>
+          <label class="btn-quiet light" for="doc">Выбрать файл</label>
+          <span class="fname" id="fname">файл не выбран</span>
+          <button type="submit" class="btn-quiet">Загрузить и индексировать</button>
+        </div>
+      </form>
+      {% endif %}
+      <p class="muted" style="font-size: .72rem; margin: auto 0 0; text-align: right">Всего в базе: {{ chunk_count }} чанков.</p>
+    </div>
+  </div>
+  <div>
+    <h2>Статистика</h2>
+    <div class="statwrap"><table class="compact">
+      <tr><th>Показатель</th><th>Значение</th></tr>
+      <tr><td>Запросов получено</td><td>{{ stats.total_requests }}</td></tr>
+      <tr><td>Принято</td><td class="good">{{ stats.accepted }}</td></tr>
+      <tr><td>Отклонено</td><td>{{ stats.rejected }}
+          {% for reason, n in stats.rejected_by_reason.items() %}<span class="reason-chip">{{ reason }}: {{ n }}</span>{% endfor %}</td></tr>
+      <tr><td>Источники</td><td>
+          {% for src, n in stats.by_source.items() %}{{ src }}: {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}</td></tr>
+      <tr><td>Пользователи (telegram)</td><td>
+          {{ stats.unique_users }} уникальных
+          {% for uid, n in stats.by_user.items() %}<span class="reason-chip">{{ uid }}: {{ n }}</span>{% endfor %}</td></tr>
+      <tr><td>Ответов подготовлено</td><td>{{ stats.answered }}</td></tr>
+      <tr><td>Из кеша</td><td>{{ stats.cache_hits }} ({{ stats.cache_share_pct }}%)</td></tr>
+      <tr><td>Средняя длительность</td><td>{{ stats.avg_duration_ms or '—' }} мс</td></tr>
+      <tr><td>Ошибок</td><td>{{ stats.errors }}</td></tr>
+    </table></div>
+  </div>
 </div>
 
-<h2>Статистика за 7 дней</h2>
-<p class="muted" style="font-size: .82rem; margin: 0 0 .8rem">Модель ответа:
-  <b>{{ model_name }}</b> · Эмбеддинги: {{ embedding_provider }} / <b>{{ embedding_model }}</b></p>
-<div class="tiles">
-  <div class="tile"><div class="n">{{ stats.total_requests }}</div><div class="l">запросов получено</div></div>
-  <div class="tile"><div class="n good">{{ stats.accepted }}</div><div class="l">принято</div></div>
-  <div class="tile"><div class="n">{{ stats.cache_share_pct }}%</div><div class="l">ответов из кеша</div></div>
-  <div class="tile"><div class="n">{{ stats.avg_duration_ms or '—' }}<span style="font-size:.6em{% if stats.avg_duration_ms %}; margin-left:.2em{% endif %}">{% if stats.avg_duration_ms %}мс{% endif %}</span></div><div class="l">средняя длительность</div></div>
-</div>
-<div class="tablewrap"><table>
-  <tr><th>Показатель</th><th>Значение</th></tr>
-  <tr><td>Запросов получено</td><td>{{ stats.total_requests }}</td></tr>
-  <tr><td>Принято</td><td class="good">{{ stats.accepted }}</td></tr>
-  <tr><td>Отклонено</td><td>{{ stats.rejected }}
-      {% for reason, n in stats.rejected_by_reason.items() %}<span class="reason">{{ reason }}: {{ n }}</span>{% endfor %}</td></tr>
-  <tr><td>Запросов по источникам</td><td>
-      {% for src, n in stats.by_source.items() %}{{ src }}: {{ n }}{% if not loop.last %}, {% endif %}{% endfor %}</td></tr>
-  <tr><td>Пользователи (telegram)</td><td>
-      {{ stats.unique_users }} уникальных
-      {% for uid, n in stats.by_user.items() %}<span class="reason">{{ uid }}: {{ n }}</span>{% endfor %}</td></tr>
-  <tr><td>Ответов подготовлено</td><td>{{ stats.answered }}</td></tr>
-  <tr><td>Из кеша</td><td>{{ stats.cache_hits }} ({{ stats.cache_share_pct }}%)</td></tr>
-  <tr><td>Средняя длительность</td><td>{{ stats.avg_duration_ms or '—' }} мс</td></tr>
-  <tr><td>Ошибок</td><td>{{ stats.errors }}</td></tr>
-</table></div>
-
-<h2>Токены по моделям (расход LLM)</h2>
-<div class="tablewrap"><table>
-  <tr><th>Модель</th><th>Prompt</th><th>Completion</th></tr>
-  {% for model, tok in stats.tokens_by_model.items() %}
-  <tr><td>{{ model }}</td><td>{{ tok.prompt }}</td><td>{{ tok.completion }}</td></tr>
-  {% else %}
-  <tr><td colspan="3">Нет данных за период</td></tr>
-  {% endfor %}
-</table></div>
-
-<h2>Последние события конвейера</h2>
+<h2 class="wide-head">События конвейера <span class="muted" style="font-weight:400; font-size:.8rem">за выбранный период</span></h2>
 {% if feed %}
-<div class="tablewrap"><table>
+<div class="tablewrap wide"><table>
   <tr><th>Время</th><th>Событие</th><th>Источник</th><th>Вопрос</th><th>Кеш</th><th>мс</th><th>Модель</th><th>Токены (p/c)</th><th>Заметка</th></tr>
   {% for e in feed %}
   <tr {% if e.error %}class="err-row"{% endif %}>
@@ -544,11 +637,23 @@ ADMIN_PAGE = """<!doctype html>
   {% endfor %}
 </table></div>
 {% else %}
-<p class="muted">События пока не записывались.</p>
+<p class="muted" style="margin: .4rem -18rem 0">Событий за выбранный период нет.</p>
 {% endif %}
+<div class="totals">Расход LLM ({{ model_name }}): вход — {{ stats.total_prompt_tokens }} токенов (вопрос + найденное в базе),
+выход — {{ stats.total_completion_tokens }} (ответ). Стоимость за выбранный период ≈ {{ stats.cost_usd }} $</div>
 
+<script>
+// показать имя выбранного файла вместо «файл не выбран»
+var doc = document.getElementById('doc');
+if (doc) doc.addEventListener('change', function () {
+  document.getElementById('fname').textContent =
+    doc.files.length ? doc.files[0].name : 'файл не выбран';
+});
+</script>
 </body></html>
 """
+
+PERIOD_OPTIONS = [(1, "24 ч"), (7, "7 дн"), (30, "30 дн")]
 
 STATS_PAGE = """<!doctype html>
 <html lang="ru">
@@ -610,43 +715,59 @@ STATS_PAGE = """<!doctype html>
 # --------------------------------------------------------------- витрина
 @app.route("/", methods=["GET"])
 def index():
-    return render_template_string(PAGE, examples=EXAMPLES,
-                                  query_text="", answer=None, sources=None,
-                                  from_cache=False, error=None)
+    return render_template_string(PAGE)
+
+
+# Человекочитаемые причины отклонения (причины — из конвейера логов)
+REJECT_TEXT = {
+    "empty_query": "Пустой вопрос — напишите, что хотите узнать.",
+    "too_long_query": "Вопрос слишком длинный — сократите и повторите.",
+    "internal_error": "Внутренняя ошибка при обработке — попробуйте позже.",
+}
+
+
+def _friendly_reject(exc: ValueError) -> str:
+    raw = str(exc)
+    if raw.startswith("Запрос отклонён: "):
+        return REJECT_TEXT.get(raw.split(": ", 1)[1], raw)
+    return raw
 
 
 @app.route("/ask", methods=["POST"])
 def ask():
-    query = request.form.get("query", "")
+    """JSON-ответ для витрины: {answer, sources, from_cache} или {error}."""
+    query = request.form.get("query", "").strip()
     ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
 
     if rate_limited(ip):
-        return render_template_string(
-            PAGE, examples=EXAMPLES, query_text=query, answer=None,
-            sources=None, from_cache=False,
-            error="Слишком много вопросов подряд — подождите немного и попробуйте ещё."), 429
+        return jsonify_wrap({"error": "Слишком много вопросов подряд — подождите немного и попробуйте ещё."}, 429)
 
-    ctx = {"examples": EXAMPLES, "query_text": query,
-           "answer": None, "sources": None, "from_cache": False, "error": None}
     try:
         result = get_pipeline().query(query)
-        from_cache = result.get("from_cache", False)
-        # Источники показываются только для свежего ответа: в кеш попадает
-        # текст документа без метаданных, у него source нет
-        sources = None
-        if not from_cache:
-            sources = list(dict.fromkeys(
-                d.get("source") for d in (result.get("context_docs") or [])
-                if isinstance(d, dict) and d.get("source")))
-        ctx.update(answer=result["answer"], sources=sources, from_cache=from_cache)
     except ValueError as ve:
         # Отклонение с причиной — уже залогировано в pipeline
-        ctx["error"] = str(ve)
-        return render_template_string(PAGE, **ctx)
+        return jsonify_wrap({"error": _friendly_reject(ve)}, 400)
     except Exception:
-        ctx["error"] = "Не получилось получить ответ по базе — попробуйте другой вопрос."
-        return render_template_string(PAGE, **ctx)
-    return render_template_string(PAGE, **ctx)
+        return jsonify_wrap({"error": "Не получилось получить ответ по базе — попробуйте другой вопрос."}, 500)
+
+    from_cache = result.get("from_cache", False)
+    # Источники показываются только для свежего ответа: в кеш попадает
+    # текст документа без метаданных, у него source нет
+    sources = None
+    if not from_cache:
+        sources = list(dict.fromkeys(
+            d.get("source") for d in (result.get("context_docs") or [])
+            if isinstance(d, dict) and d.get("source")))
+    return jsonify_wrap({"answer": result["answer"],
+                         "sources": sources or [], "from_cache": from_cache})
+
+
+def jsonify_wrap(payload: dict, code: int = 200):
+    """Мини-jsonify: без импорта flask.jsonify — тот же контракт."""
+    import json as _json
+    from flask import Response
+    return Response(_json.dumps(payload, ensure_ascii=False),
+                    status=code, mimetype="application/json")
 
 
 @app.route("/about", methods=["GET"])
@@ -681,14 +802,24 @@ def admin():
     if not admin_ok():
         return render_template_string(LOGIN_PAGE, no_password=False, wrong=False)
 
+    try:
+        period = int(request.args.get("period", "7"))
+    except ValueError:
+        period = 7
+    if period not in (1, 7, 30):
+        period = 7
+
     pipeline = get_pipeline()
+    stats = pipeline.logger.get_stats(period_days=period)
+    avg_sec = round(stats["avg_duration_ms"] / 1000) if stats["avg_duration_ms"] else None
     return render_template_string(
         ADMIN_PAGE,
-        stats=pipeline.logger.get_stats(period_days=7),
+        stats=stats,
+        period=period,
+        period_options=PERIOD_OPTIONS,
+        avg_sec=avg_sec if avg_sec is not None else "—",
         model_name=os.getenv("MODEL_NAME", "—"),
-        embedding_provider=os.getenv("EMBEDDING_PROVIDER", "—"),
-        embedding_model=os.getenv("EMBEDDING_MODEL", "—"),
-        feed=pipeline.logger.get_recent(limit=25)["events"],
+        feed=pipeline.logger.get_recent(limit=25, days=period)["events"],
         chunk_count=pipeline.vector_store.get_collection_stats()["count"],
         ingest_msg=request.args.get("upload") or None,
         ingest_err=request.args.get("upload_err") or None,
