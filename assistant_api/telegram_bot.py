@@ -12,13 +12,15 @@ source="telegram", user_id. Здесь то же поверх нашего ко�
 На сервере — второй контейнер того же образа (см. deploy/DEPLOY_RAG.md).
 """
 
+import csv
+import io
 import logging
 import os
 import sys
 from datetime import datetime
 
 from dotenv import load_dotenv
-from telegram import Update
+from telegram import InputFile, Update
 from telegram.constants import ChatAction
 from telegram.ext import (
     Application, CommandHandler, ContextTypes, MessageHandler, filters,
@@ -87,6 +89,22 @@ EXAMPLES = [
     "Что такое ИМ40?",
 ]
 
+# Кнопки-команды (ReplyKeyboard, как у преподавателя в уроке)
+BTN_HELP = "🆘 Помощь"
+BTN_STATS = "📊 Статистика"
+BTN_LOGS = "📁 Логи"
+_COMMAND_LABELS = {BTN_HELP, BTN_STATS, BTN_LOGS, "Помощь", "Статистика", "Логи"}
+
+ABOUT_TEXT = (
+    "⚙️ <b>Как работает</b>\n"
+    "1. Вопрос превращается в вектор и ищет ближайшие фрагменты базы "
+    "(ChromaDB + эмбеддинги BGE-M3).\n"
+    "2. Найденные фрагменты передаются модели как контекст.\n"
+    "3. Ответ собирается строго по контексту — под ответом источники.\n\n"
+    "🔒 Персональные данные (телефоны, email, номера карт) маскируются "
+    "<i>до</i> записи в лог; логи хранятся "
+    f"{os.getenv('LOG_RETENTION_DAYS', '90')} дней.")
+
 ADMIN_HINT = (
     "Впиши в ADMIN_USER_IDS (файл .env, через запятую) свой Telegram user_id, "
     "и служебные команды переключатся на тебя. Узнать свой user_id: "
@@ -132,24 +150,30 @@ async def ingest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Приветствие: пользователю — суть и примеры вопросов (кнопками),
-    оператору видно и служебное."""
+    оператору ещё и служебные кнопки (как у преподавателя)."""
     user_id = str(update.effective_user.id)
     kb = None
     if update.effective_chat.type == "private":
         from telegram import KeyboardButton, ReplyKeyboardMarkup
-        rows = [[KeyboardButton(EXAMPLES[0]), KeyboardButton(EXAMPLES[1])],
-                [KeyboardButton(EXAMPLES[2])]]
+        rows = [[KeyboardButton(BTN_HELP), KeyboardButton(BTN_STATS)],
+                [KeyboardButton(BTN_LOGS)],
+                [KeyboardButton(EXAMPLES[0]), KeyboardButton(EXAMPLES[1])],
+                [KeyboardButton(EXAMPLES[2])]] if is_admin(user_id) else [
+            [KeyboardButton(BTN_HELP)],
+            [KeyboardButton(EXAMPLES[0]), KeyboardButton(EXAMPLES[1])],
+            [KeyboardButton(EXAMPLES[2])]]
         kb = ReplyKeyboardMarkup(rows, resize_keyboard=True)
     extra = ADMIN_EXTRA if is_admin(user_id) else (
         "\n\n" + ADMIN_HINT if not _admin_ids() else "")
     if kb:
-        await update.message.reply_html(USER_HELP_TEXT + extra, reply_markup=kb)
+        await update.message.reply_html(USER_HELP_TEXT + "\n\n" + ABOUT_TEXT + extra,
+                                        reply_markup=kb)
     else:
-        await update.message.reply_html(USER_HELP_TEXT + extra)
+        await update.message.reply_html(USER_HELP_TEXT + "\n\n" + ABOUT_TEXT + extra)
 
 
-async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Статистика из логов — только оператору (как /stats у преподавателя)."""
+async def stats_response(update: Update):
+    """Статистика из логов — только оператору (кнопка /статистика или /stats)."""
     if not is_admin(str(update.effective_user.id)):
         await update.message.reply_text(
             "Статистика запросов доступна только оператору ассистента.")
@@ -160,6 +184,10 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<b>📊 Статистика за 7 дней</b>",
         f"Запросов: {stats['total_requests']}",
         f"Принято: {stats['accepted']}, отклонено: {stats['rejected']}",
+        f"⚙️ Модель ответа: <b>{os.getenv('MODEL_NAME', '—')}</b>",
+        f"Эмбеддинги: {os.getenv('EMBEDDING_PROVIDER', 'api')} / "
+        f"<b>{os.getenv('EMBEDDING_MODEL', '—')}</b>",
+        f"Фрагментов в контексте: топ-{pipeline.top_k}",
     ]
     if stats["by_source"]:
         src = ", ".join(f"{k}: {v}" for k, v in stats["by_source"].items())
@@ -176,10 +204,47 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_html("\n".join(lines))
 
 
+async def logs_response(update: Update):
+    """Лог конвейера CSV-файлом — только оператору (кнопка /логи).
+    В файле маскированные данные (то же правило, что у страницы статистики)."""
+    if not is_admin(str(update.effective_user.id)):
+        await update.message.reply_text(
+            "Логи запросов доступны только оператору ассистента.")
+        return
+    pipeline = get_pipeline()
+    events = pipeline.logger.get_recent(limit=200)["events"]
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["время", "событие", "источник", "вопрос (маскирован)",
+                     "из кеша", "мс", "причина", "ошибка"])
+    for e in events:
+        writer.writerow([
+            e.get("time", ""), e.get("event", ""), e.get("source", ""),
+            e.get("query", ""), e.get("from_cache", ""),
+            e.get("duration_ms", ""), e.get("reason", ""), e.get("error", ""),
+        ])
+    filename = "логи_conвейера_" + datetime.now().strftime("%Y%m%d_%H%M") + ".csv"
+    await update.message.reply_document(
+        document=InputFile(buf.getvalue().encode("utf-8-sig"), filename=filename),
+        caption=f"Лог конвейера — последние {len(events)} событий "
+                "(перс. данные маскированы до записи).")
+
+
 async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Вопрос пользователя → конвейер → лог(source=telegram, user_id) → ответ."""
+    """Вопрос пользователя → конвейер → лог(source=telegram, user_id) → ответ.
+    Текст кнопок (Помощь/Статистика/Логи) маршрутизируется в свои ответы."""
     user_message = update.message.text
     user_id = str(update.effective_user.id)   # как в коде урока
+
+    # кнопки-команды — не вопросы, в конвейер и лог не идут
+    if user_message in _COMMAND_LABELS:
+        if user_message in (BTN_HELP, "Помощь"):
+            await cmd_start(update, context)
+        elif user_message in (BTN_STATS, "Статистика"):
+            await stats_response(update)
+        else:
+            await logs_response(update)
+        return
 
     pipeline = get_pipeline()
     await update.message.chat.send_action(action=ChatAction.TYPING)
@@ -208,6 +273,14 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE):
     log.error("Ошибка Telegram: %s", context.error)
 
 
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await stats_response(update)
+
+
+async def logs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await logs_response(update)
+
+
 def main():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
@@ -218,6 +291,7 @@ def main():
     app = Application.builder().token(token).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("stats", stats_command))
+    app.add_handler(CommandHandler("logs", logs_command))
     app.add_handler(CommandHandler("ingest", ingest_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,
                                    handle_question))
