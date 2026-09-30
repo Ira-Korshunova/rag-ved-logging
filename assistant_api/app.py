@@ -35,7 +35,8 @@ def print_banner():
     print("База знаний: документы по ВЭД (таможня, Incoterms, ТН ВЭД, расчёты)")
     print("Введите 'exit' или 'quit' для выхода")
     print("Введите 'stats' для просмотра статистики")
-    print("Введите 'clear' для очистки кеша\n")
+    print("Введите 'clear' для очистки кеша")
+    print("Введите 'ingest' — добавить в базу новые файлы из папки data\n")
 
 
 def print_response(result: dict):
@@ -171,6 +172,20 @@ def main():
                 if confirm.lower() in ['yes', 'y', 'да']:
                     pipeline.cache.clear()
                     print("✅ Кеш очищен")
+                continue
+
+            if user_input.lower() == 'ingest':
+                try:
+                    ingest_result = pipeline.vector_store.add_documents_from_folder("data")
+                    if ingest_result["added_files"] == 0:
+                        print(f"ℹ️  Новых документов нет — база актуальна "
+                              f"({ingest_result['total']} чанков)")
+                    else:
+                        print(f"✅ База пополнена: +{ingest_result['added_chunks']} чанков "
+                              f"из {ingest_result['added_files']} новых файлов. "
+                              f"Всего в коллекции: {ingest_result['total']} чанков")
+                except FileNotFoundError as fe:
+                    print(f"❌ {fe}")
                 continue
             
             if not user_input:

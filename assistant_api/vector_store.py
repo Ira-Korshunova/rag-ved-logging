@@ -347,6 +347,80 @@ class VectorStore:
 
         print(f"Загружено {chunk_counter} чанков из {len(files)} файлов в коллекцию '{self.collection_name}'")
     
+    def add_documents_from_folder(self, folder_path: str, extensions=(".txt", ".md")) -> Dict[str, int]:
+        """
+        Инкрементальная индексация: добавляет в коллекцию только НОВЫЕ файлы.
+
+        Отличие от load_documents_from_folder (та грузит всё при пустой базе):
+        здесь сравниваются имена файлов-источников с метаданными source
+        уже лежащих чанков, и индексируются только файлы, которых в коллекции
+        ещё нет. Вектора существующих документов не пересоздаются.
+
+        Args:
+            folder_path: путь к папке с документами
+            extensions: кортеж расширений файлов, которые индексируем
+
+        Returns:
+            {"added_files": N, "added_chunks": M, "total": K} — итоги пополнения
+        """
+        if not os.path.isdir(folder_path):
+            raise FileNotFoundError(f"Папка {folder_path} не найдена")
+
+        # Источники уже лежащих в коллекции чанков
+        existing_sources = set()
+        stored = self.collection.get(include=["metadatas"])
+        for meta in stored.get("metadatas") or []:
+            if isinstance(meta, dict) and meta.get("source"):
+                existing_sources.add(meta["source"])
+
+        files = [
+            os.path.join(folder_path, f)
+            for f in sorted(os.listdir(folder_path))
+            if f.lower().endswith(extensions)
+        ]
+        new_files = [f for f in files if os.path.basename(f) not in existing_sources]
+
+        if not new_files:
+            return {"added_files": 0, "added_chunks": 0,
+                    "total": self.collection.count()}
+
+        documents = []
+        ids = []
+        embeddings = []
+        metadatas = []
+        chunk_counter = 0
+
+        for file_path in new_files:
+            file_name = os.path.basename(file_path)
+            with open(file_path, "r", encoding="utf-8") as f:
+                text = f.read()
+
+            if not text.strip():
+                print(f"  [пропуск] {file_name} — пустой файл")
+                continue
+
+            chunks = self._chunk_text(text)
+            print(f"  {file_name}: {len(chunks)} чанков")
+
+            for chunk in chunks:
+                embedding = self._create_embedding(chunk)
+                documents.append(chunk)
+                ids.append(f"{file_name}_{chunk_counter}")
+                embeddings.append(embedding)
+                metadatas.append({"source": file_name})
+                chunk_counter += 1
+
+        self.collection.add(
+            documents=documents,
+            embeddings=embeddings,
+            ids=ids,
+            metadatas=metadatas
+        )
+
+        print(f"Пополнение: +{chunk_counter} чанков из {len(new_files)} новых файлов")
+        return {"added_files": len(new_files), "added_chunks": chunk_counter,
+                "total": self.collection.count()}
+
     def _create_embedding(self, text: str) -> List[float]:
         """
         Создание векторного представления текста.

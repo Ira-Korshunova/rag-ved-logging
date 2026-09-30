@@ -43,7 +43,9 @@ rsync -az --delete \
 ```bash
 ssh irina@72.56.94.48
 cp /opt/rag-ved/deploy/.env.server.example /opt/rag-ved/deploy/.env
-nano /opt/rag-ved/deploy/.env        # вписать только LLM_API_KEY (DeepSeek) и придумать STATS_PASSWORD
+nano /opt/rag-ved/deploy/.env        # вписать: LLM_API_KEY (DeepSeek), STATS_PASSWORD,
+                                    # TELEGRAM_BOT_TOKEN; опция — ADMIN_USER_IDS (свой
+                                    # TG user_id — только он сможет вызывать /ingest)
 chmod 600 /opt/rag-ved/deploy/.env
 exit
 ```

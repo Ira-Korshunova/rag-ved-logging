@@ -53,8 +53,59 @@ HELP_TEXT = (
     "контроль — просто отправь вопрос текстом.\n\n"
     "Команды:\n"
     "/start — это сообщение\n"
-    "/stats — статистика запросов за 7 дней"
+    "/stats — статистика запросов за 7 дней\n"
+    "/ingest — пополнить базу новыми файлами из data/ (для админа)"
 )
+
+
+def _admin_ids():
+    """Список Telegram user_id, которым разрешён /ingest (ADMIN_USER_IDS,
+    через запятую). Если переменная не задана — команда допускается всем
+    (режим разработки); на сервере админа стоит вписать."""
+    raw = os.getenv("ADMIN_USER_IDS", "")
+    return {s.strip() for s in raw.split(",") if s.strip()}
+
+
+ADMIN_HINT = (
+    "Впиши в ADMIN_USER_IDS (файл .env, через запятую) свой Telegram user_id, "
+    "и команда откроется. Узнать свой user_id можно у @userinfobot."
+)
+
+
+async def ingest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Пополнение базы знаний (админ-команда): инкрементальная индексация
+    папки data/ — в коллекцию добавляются только ещё не индексированные файлы,
+    существующие вектора не пересоздаются."""
+    user_id = str(update.effective_user.id)
+    admins = _admin_ids()
+    if admins and user_id not in admins:
+        await update.message.reply_text(
+            "Команда доступна только администратору базы знаний.")
+        return
+
+    pipeline = get_pipeline()
+    await update.message.chat.send_action(action=ChatAction.TYPING)
+    try:
+        result = pipeline.vector_store.add_documents_from_folder(
+            os.getenv("INGEST_DATA_PATH", "data"))
+    except FileNotFoundError as e:
+        await update.message.reply_text(f"Папка с документами не найдена: {e}")
+        return
+    except Exception as e:
+        log.error("Ошибка индексации: %s", e)
+        await update.message.reply_text(
+            "Индексация не удалась — ошибка пошла в лог.")
+        return
+
+    if result["added_files"] == 0:
+        await update.message.reply_text(
+            f"Новых документов нет — база актуальна "
+            f"({result['total']} чанков).")
+    else:
+        await update.message.reply_html(
+            f"✅ База пополнена: <b>+{result['added_chunks']} чанков</b> "
+            f"из {result['added_files']} новых файлов.\n"
+            f"Всего в коллекции: {result['total']} чанков.")
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -128,6 +179,7 @@ def main():
     app = Application.builder().token(token).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("stats", stats_command))
+    app.add_handler(CommandHandler("ingest", ingest_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,
                                    handle_question))
     app.add_error_handler(on_error)
