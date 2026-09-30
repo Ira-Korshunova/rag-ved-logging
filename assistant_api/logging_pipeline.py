@@ -157,6 +157,13 @@ class RequestLogger:
 
     # ------------------------------------------------------------- проверки
 
+    @staticmethod
+    def mask_user_id(user_id: str) -> str:
+        """Telegram ID в отчётах — обрезанный (774…91): по нему нельзя
+        восстановить аккаунт; полный ID остаётся только в базе на сервере."""
+        uid = str(user_id)
+        return uid[:3] + "…" + uid[-2:] if len(uid) > 5 else uid
+
     def validate(self, query: str) -> Optional[str]:
         """Проверка запроса до обработки. Возвращает причину отказа или None."""
         if not query or not query.strip():
@@ -290,7 +297,9 @@ class RequestLogger:
             WHERE event = ? AND user_id IS NOT NULL AND created_at >= {since}
             GROUP BY user_id ORDER BY COUNT(*) DESC
         """, (EVENT_RECEIVED,))
-        by_user = {row[0]: row[1] for row in cursor.fetchall()}
+        # Псевдонимизация: показываем обрезанный ID (первые+последние цифры),
+        # полный ID остаётся только в базе логов на сервере
+        by_user = {self.mask_user_id(row[0]): row[1] for row in cursor.fetchall()}
 
         conn.close()
 
