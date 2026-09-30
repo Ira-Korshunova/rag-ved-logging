@@ -300,6 +300,40 @@ class RequestLogger:
             "errors": errors,
         }
 
+    def get_recent(self, limit: int = 25) -> Dict[str, Any]:
+        """
+        Последние события конвейера (для веб-панели оператора).
+
+        Возвращает события в обратном хронологическом порядке: время,
+        событие, источник, замаскированный фрагмент вопроса, из кеша,
+        длительность, ошибка. Полные тексты пользователей сюда не попадают
+        (PII-правило урока) — только замаскированный фрагмент до 120 символов.
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT created_at, event, COALESCE(source, 'unknown'),
+                   query_masked, from_cache, duration_ms, reason, error
+            FROM request_log
+            ORDER BY id DESC
+            LIMIT ?
+        """, (limit,))
+        rows = cursor.fetchall()
+        conn.close()
+        events = []
+        for created_at, event, source, query, cached, ms, reason, error in rows:
+            events.append({
+                "time": (created_at or "")[:16],
+                "event": event,
+                "source": source,
+                "query": (query[:120] + "…") if query and len(query) > 120 else query,
+                "from_cache": bool(cached) if cached is not None else None,
+                "duration_ms": ms,
+                "reason": reason,
+                "error": error,
+            })
+        return {"events": events}
+
 
 if __name__ == "__main__":
     # Демонстрация конвейера на искусственном запросе

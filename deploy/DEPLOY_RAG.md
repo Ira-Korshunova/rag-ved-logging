@@ -56,10 +56,12 @@ exit
 
 ```bash
 ssh irina@72.56.94.48 'set -e
-# 1. сид локального векторного индекса (BGE-M3) в том
+# 1. сид локального векторного индекса (BGE-M3) в том + папка документов в тое
 sudo mkdir -p /opt/rag-ved/state
 sudo rm -rf /opt/rag-ved/state/chroma_db
 sudo cp -r /opt/rag-ved/assistant_api/chroma_db_local /opt/rag-ved/state/chroma_db
+sudo cp -r /opt/rag-ved/assistant_api/data /opt/rag-ved/state/data
+# (DATA_DIR=/app/state/data — туда оператор грузит файлы через /admin)
 # 2. образ + контейнер (лейблы Traefik — как у Porta)
 cd /opt/rag-ved && sudo docker build -t rag-ved .
 sudo docker rm -f rag-ved rag-ved-bot 2>/dev/null || true

@@ -47,28 +47,50 @@ def get_pipeline():
     return _pipeline
 
 
-HELP_TEXT = (
-    "🤖 <b>RAG-ассистент по ВЭД</b>\n\n"
-    "Спрашивай про таможню, Incoterms, ТН ВЭД, формы расчётов, валютный "
-    "контроль — просто отправь вопрос текстом.\n\n"
-    "Команды:\n"
-    "/start — это сообщение\n"
+USER_HELP_TEXT = (
+    "🤖 <b>Ассистент по ВЭД</b>\n\n"
+    "Отвечаю по базе документов ЕАЭС и ТК РФ: таможенные процедуры, "
+    "Incoterms, ТН ВЭД, формы расчётов, валютный контроль.\n\n"
+    "Просто напишите вопрос — например:\n"
+    "• Чем отличается CIF от FOB?\n"
+    "• Какие документы нужны для импорта?\n"
+    "• Что такое ИМ40?\n\n"
+    "Под каждым ответом — документы, по которым он собран."
+)
+
+ADMIN_EXTRA = (
+    "\n\n<small>— служебное (для оператора) —</small>\n"
     "/stats — статистика запросов за 7 дней\n"
-    "/ingest — пополнить базу новыми файлами из data/ (для админа)"
+    "/ingest — пополнить базу новыми файлами из data/"
 )
 
 
 def _admin_ids():
-    """Список Telegram user_id, которым разрешён /ingest (ADMIN_USER_IDS,
-    через запятую). Если переменная не задана — команда допускается всем
-    (режим разработки); на сервере админа стоит вписать."""
+    """Список Telegram user_id оператора (ADMIN_USER_IDS, через запятую).
+    Пока переменная не задана — служебные команды допускаются всем
+    (режим разработки); на сервере стоит вписать свой user_id."""
     raw = os.getenv("ADMIN_USER_IDS", "")
     return {s.strip() for s in raw.split(",") if s.strip()}
 
 
+def is_admin(user_id: str) -> bool:
+    """Служебные команды (/stats, /ingest) — только оператору."""
+    admins = _admin_ids()
+    if not admins:
+        return True
+    return user_id in admins
+
+
+EXAMPLES = [
+    "Чем отличается CIF от FOB?",
+    "Какие документы нужны для импорта?",
+    "Что такое ИМ40?",
+]
+
 ADMIN_HINT = (
     "Впиши в ADMIN_USER_IDS (файл .env, через запятую) свой Telegram user_id, "
-    "и команда откроется. Узнать свой user_id можно у @userinfobot."
+    "и служебные команды переключатся на тебя. Узнать свой user_id: "
+    "@userinfobot."
 )
 
 
@@ -87,7 +109,7 @@ async def ingest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.chat.send_action(action=ChatAction.TYPING)
     try:
         result = pipeline.vector_store.add_documents_from_folder(
-            os.getenv("INGEST_DATA_PATH", "data"))
+            os.getenv("DATA_DIR", "data"))
     except FileNotFoundError as e:
         await update.message.reply_text(f"Папка с документами не найдена: {e}")
         return
@@ -109,12 +131,29 @@ async def ingest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_html(HELP_TEXT)
+    """Приветствие: пользователю — суть и примеры вопросов (кнопками),
+    оператору видно и служебное."""
+    user_id = str(update.effective_user.id)
+    kb = None
+    if update.effective_chat.type == "private":
+        from telegram import KeyboardButton, ReplyKeyboardMarkup
+        rows = [[KeyboardButton(EXAMPLES[0]), KeyboardButton(EXAMPLES[1])],
+                [KeyboardButton(EXAMPLES[2])]]
+        kb = ReplyKeyboardMarkup(rows, resize_keyboard=True)
+    extra = ADMIN_EXTRA if is_admin(user_id) else (
+        "\n\n" + ADMIN_HINT if not _admin_ids() else "")
+    if kb:
+        await update.message.reply_html(USER_HELP_TEXT + extra, reply_markup=kb)
+    else:
+        await update.message.reply_html(USER_HELP_TEXT + extra)
 
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Статистика из логов (как /stats у преподавателя, без пароля —
-    доступен только автору команды в личном чате с ботом)."""
+    """Статистика из логов — только оператору (как /stats у преподавателя)."""
+    if not is_admin(str(update.effective_user.id)):
+        await update.message.reply_text(
+            "Статистика запросов доступна только оператору ассистента.")
+        return
     pipeline = get_pipeline()
     stats = pipeline.logger.get_stats(period_days=7)
     lines = [
