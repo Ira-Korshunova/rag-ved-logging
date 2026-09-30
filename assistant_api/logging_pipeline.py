@@ -95,12 +95,16 @@ class RequestLogger:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_log_created ON request_log(created_at)")
         conn.commit()
         conn.close()
-        # Миграция старых баз: колонка source (канал запроса) появилась позже
+        # Миграция старых баз: колонки source (канал) и user_id появились позже
         conn = sqlite3.connect(self.db_path)
         columns = [row[1] for row in conn.execute("PRAGMA table_info(request_log)")]
         if columns and "source" not in columns:
             conn.execute("ALTER TABLE request_log ADD COLUMN source TEXT")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_log_source ON request_log(source)")
+        if columns and "user_id" not in columns:
+            conn.execute("ALTER TABLE request_log ADD COLUMN user_id TEXT")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_log_user ON request_log(user_id)")
+        if columns and ("source" not in columns or "user_id" not in columns):
             conn.commit()
         conn.close()
 
@@ -114,11 +118,13 @@ class RequestLogger:
             reason: str = None, model: str = None,
             prompt_tokens: int = None, completion_tokens: int = None,
             duration_ms: int = None, from_cache: bool = False,
-            error: str = None, source: str = None):
+            error: str = None, source: str = None, user_id: str = None):
         """
         Запись события конвейера. Текст запроса перед записью проходит
         PII-фильтр (анонимность по уроку). Канал запроса (source) берётся
         из конструктора, отдельное событие может переопределить.
+        user_id — идентификатор пользователя канала (только telegram, как в
+        коде урока; web-канал пользователей не имеет, поле остаётся пустым).
         """
         if source is None:
             source = self.source
@@ -129,11 +135,12 @@ class RequestLogger:
         cursor.execute("""
             INSERT INTO request_log
                 (request_id, event, reason, model, prompt_tokens,
-                 completion_tokens, duration_ms, from_cache, error, query_masked, source)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 completion_tokens, duration_ms, from_cache, error, query_masked,
+                 source, user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (request_id, event, reason, model, prompt_tokens,
               completion_tokens, duration_ms, int(from_cache), error, query_masked,
-              source))
+              source, user_id))
         conn.commit()
         conn.close()
 
@@ -143,7 +150,7 @@ class RequestLogger:
             "model": model, "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens, "duration_ms": duration_ms,
             "from_cache": from_cache, "error": error,
-            "query_masked": query_masked, "source": source,
+            "query_masked": query_masked, "source": source, "user_id": user_id,
             "created_at": datetime.now().isoformat(timespec="seconds"),
         }
         self._append_jsonl(record)

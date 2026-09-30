@@ -162,7 +162,8 @@ class RAGPipeline:
         }
         return answer, tokens
     
-    def query(self, user_query: str, use_cache: bool = True) -> Dict[str, Any]:
+    def query(self, user_query: str, use_cache: bool = True,
+              user_id: str = None) -> Dict[str, Any]:
         """
         Основной метод для обработки запроса пользователя через API.
 
@@ -179,6 +180,8 @@ class RAGPipeline:
         Args:
             user_query: запрос пользователя
             use_cache: использовать ли кеш
+            user_id: идентификатор пользователя канала (telegram); для web
+                     и console остаётся None
 
         Returns:
             словарь с ответом и метаданными
@@ -190,18 +193,20 @@ class RAGPipeline:
         t_start = time.monotonic()
         request_id = self.logger.new_request()
         # Событие 1: пользователь отправил запрос
-        self.logger.log(request_id, EVENT_RECEIVED, query=user_query)
+        self.logger.log(request_id, EVENT_RECEIVED, query=user_query,
+                        user_id=user_id)
 
         # Проверка запроса до обработки (отклонение с причиной)
         reason = self.logger.validate(user_query)
         if reason:
             print(f"[!] Запрос отклонён: {reason}")
             # Событие 2б: запрос отклонён, причина фиксируется в логе
-            self.logger.log(request_id, EVENT_REJECTED, reason=reason)
+            self.logger.log(request_id, EVENT_REJECTED, reason=reason,
+                            user_id=user_id)
             raise ValueError(f"Запрос отклонён: {reason}")
 
         # Событие 2а: запрос принят
-        self.logger.log(request_id, EVENT_ACCEPTED)
+        self.logger.log(request_id, EVENT_ACCEPTED, user_id=user_id)
 
         # Шаг 1: Проверка кеша
         if use_cache:
@@ -212,11 +217,12 @@ class RAGPipeline:
                 print("[+] Ответ найден в кеше")
                 duration_ms = int((time.monotonic() - t_start) * 1000)
                 # События 3-5: из кеша ответ готов мгновенно
-                self.logger.log(request_id, EVENT_STARTED)
+                self.logger.log(request_id, EVENT_STARTED, user_id=user_id)
                 self.logger.log(request_id, EVENT_ANSWER_READY,
                                 model="cache", from_cache=True,
-                                duration_ms=duration_ms)
-                self.logger.log(request_id, EVENT_SENT, duration_ms=duration_ms)
+                                duration_ms=duration_ms, user_id=user_id)
+                self.logger.log(request_id, EVENT_SENT, duration_ms=duration_ms,
+                                user_id=user_id)
                 return {
                     "query": user_query,
                     "answer": cached_result["answer"],
@@ -229,7 +235,7 @@ class RAGPipeline:
                 print("[-] Ответ не найден в кеше")
 
         # Событие 3: ассистент приступил к выполнению запроса
-        self.logger.log(request_id, EVENT_STARTED)
+        self.logger.log(request_id, EVENT_STARTED, user_id=user_id)
 
         try:
             # Шаг 2: Поиск релевантных документов
@@ -250,7 +256,7 @@ class RAGPipeline:
             # Ошибка обработки: ответ не отправлен — фиксируем на событии 5 с текстом ошибки
             duration_ms = int((time.monotonic() - t_start) * 1000)
             self.logger.log(request_id, EVENT_SENT, error=str(e),
-                            duration_ms=duration_ms)
+                            duration_ms=duration_ms, user_id=user_id)
             raise
 
         duration_ms = int((time.monotonic() - t_start) * 1000)
@@ -259,7 +265,7 @@ class RAGPipeline:
                         prompt_tokens=tokens.get("prompt"),
                         completion_tokens=tokens.get("completion"),
                         duration_ms=duration_ms,
-                        from_cache=False)
+                        from_cache=False, user_id=user_id)
 
         # Шаг 5: Сохранение в кеш
         if use_cache:
@@ -269,7 +275,8 @@ class RAGPipeline:
             print("[+] Сохранено в кеш")
 
         # Событие 5: система отправила ответ
-        self.logger.log(request_id, EVENT_SENT, duration_ms=duration_ms)
+        self.logger.log(request_id, EVENT_SENT, duration_ms=duration_ms,
+                        user_id=user_id)
 
         return {
             "query": user_query,

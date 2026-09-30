@@ -240,6 +240,19 @@ class TestSource:
         stats = logger.get_stats(period_days=1)
         assert stats["by_source"] == {"web": 1, "console": 1}
 
+    def test_user_id_stored_optional(self, logger):
+        """user_id пишется только когда передан (telegram), web остаётся пустым."""
+        rid = logger.new_request()
+        logger.log(rid, EVENT_RECEIVED, query="вопрос", user_id="8945961270")
+        conn = sqlite3.connect(logger.db_path)
+        assert conn.execute(
+            "SELECT user_id FROM request_log LIMIT 1").fetchone()[0] == "8945961270"
+        rid2 = logger.new_request()
+        logger.log(rid2, EVENT_RECEIVED, query="вопрос")
+        assert conn.execute(
+            "SELECT user_id FROM request_log ORDER BY id DESC LIMIT 1"
+        ).fetchone()[0] is None
+
     def test_migration_adds_source_column(self, tmp_path):
         """Старая база без колонки source поднимается с миграцией."""
         db = str(tmp_path / "old.db")

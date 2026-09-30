@@ -60,7 +60,7 @@ sudo rm -rf /opt/rag-ved/state/chroma_db
 sudo cp -r /opt/rag-ved/assistant_api/chroma_db_local /opt/rag-ved/state/chroma_db
 # 2. образ + контейнер (лейблы Traefik — как у Porta)
 cd /opt/rag-ved && sudo docker build -t rag-ved .
-sudo docker rm -f rag-ved 2>/dev/null || true
+sudo docker rm -f rag-ved rag-ved-bot 2>/dev/null || true
 sudo docker run -d --name rag-ved --restart unless-stopped --network n8n_default \
   --env-file /opt/rag-ved/deploy/.env \
   -v /opt/rag-ved/state:/app/state \
@@ -70,7 +70,13 @@ sudo docker run -d --name rag-ved --restart unless-stopped --network n8n_default
   -l traefik.http.routers.ragved.tls=true \
   -l traefik.http.routers.ragved.tls.certresolver=mytlschallenge \
   -l traefik.http.services.ragved.loadbalancer.server.port=8002 \
-  rag-ved'
+  rag-ved
+# 3. телеграм-канал (как в уроке): тот же образ, тот же .env и том,
+#    команда другая — бот вместо веба; наружных портов не нужно
+sudo docker run -d --name rag-ved-bot --restart unless-stopped --network n8n_default \
+  --env-file /opt/rag-ved/deploy/.env \
+  -v /opt/rag-ved/state:/app/state \
+  rag-ved python telegram_bot.py'
 ```
 
 > Название Traefik-сети и certresolver проверяем на сервере:
@@ -84,6 +90,7 @@ sudo docker run -d --name rag-ved --restart unless-stopped --network n8n_default
 ```bash
 curl -s https://ask.cygnusweb.ru/ | head -5
 sudo docker logs rag-ved --tail 20
+sudo docker logs rag-ved-bot --tail 20   # бот: должно быть «Бот ждёт сообщения»
 ```
 
 > Первый запрос будет медленным: при старте локальный режим один раз скачает
@@ -97,17 +104,20 @@ sudo docker logs rag-ved --tail 20
 2. Сделать тот же вопрос ещё раз → в ответе источник «кеш».
 3. Отправить пустой запрос (или >2000 символов) → сообщение об отклонении.
 4. Открыть `https://ask.cygnusweb.ru/stats?key=ПАРОЛЬ` → статистика:
-   запросы/принято/отклонено/кеш/длительность/токены.
-5. Скриншот страницы статистики — для формы (руками, не MCP).
+   запросы/принято/отклонено/источники (web, telegram)/кеш/длительность/токены.
+5. Написать боту в Telegram («Что такое ИМ40?») → ответ; в /stats появится
+   источник `telegram` — как в уроке.
+6. Скриншот страницы статистики — для формы (руками, не MCP).
 
 ## Обновление кода (повторный деплой)
 
 ```bash
 # Шаг 1 rsync (см. выше), затем:
 ssh irina@72.56.94.48 'cd /opt/rag-ved && sudo docker build -t rag-ved . \
-  && sudo docker rm -f rag-ved && sudo docker run -d ... '
+  && sudo docker rm -f rag-ved rag-ved-bot && sudo docker run -d ... \
+  && sudo docker run -d ... python telegram_bot.py'
 ```
-(команда запуска — та же из шага 3; том `/opt/rag-ved/state` сохраняет вектора/логи)
+(команды запуска — те же из шага 3; том `/opt/rag-ved/state` сохраняет вектора/логи)
 
 ## Откат / удаление
 
