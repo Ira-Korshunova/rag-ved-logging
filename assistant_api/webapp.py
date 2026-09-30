@@ -209,13 +209,18 @@ PAGE = """<!doctype html>
   .lead { color: var(--muted); margin: .45rem 0 1.4rem; }
   .brand { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
   textarea {
-    width: 100%; min-height: 5.2rem; resize: vertical; font: inherit;
+    width: 100%; min-height: 9.5rem; resize: vertical; font: inherit;
     border: 1px solid var(--brown-soft); border-radius: 6px; padding: .7rem .85rem;
     background: rgba(255,255,255,.75); color: var(--ink);
   }
   textarea:focus { outline: 2px solid var(--brown); outline-offset: 1px; }
   .row { display: flex; align-items: center; gap: .8rem; margin-top: .7rem; flex-wrap: wrap; }
   .hint { color: var(--muted); font-size: .82rem; }
+  #wait {
+    margin-top: 1rem; padding: .8rem 1rem; border-radius: 6px;
+    background: rgba(119, 87, 58, .1); border: 1px solid var(--brown-soft);
+    color: var(--ink); font-size: .9rem;
+  }
   .examples { display: flex; align-items: center; flex-wrap: wrap; gap: .45rem; margin-top: .9rem; }
   .examples .chip { cursor: pointer; font: inherit; font-size: .78rem; border: 1px solid var(--card-line); background: var(--chip); color: var(--muted); }
   .examples .chip:hover { background: #EFE9DE; }
@@ -236,6 +241,7 @@ PAGE = """<!doctype html>
 </div>
 <p class="lead">Таможня, Incoterms, ТН ВЭД, формы расчётов, валютный контроль —
   ответы по базе документов с указанием источников.</p>
+<div id="wait" hidden>Ищу ответ в базе — обычно 20–60 секунд. Страница не зависла, просто ждём модель.</div>
 <form class="card" method="post" action="/ask">
   <textarea name="query" placeholder="Ваш вопрос по ВЭД…" required>{{ query_text }}</textarea>
   <div class="row">
@@ -269,6 +275,17 @@ PAGE = """<!doctype html>
   Ассистент отвечает по документам своей базы; точность норм проверяйте
   по актуальной редакции НПА. <a href="/about">Как он работает →</a>
 </footer>
+<script>
+// Пока идёт генерация: надпись «не зависло» + кнопки в неактивное состояние
+document.querySelectorAll('form[action="/ask"]').forEach(function (f) {
+  f.addEventListener('submit', function () {
+    var b = f.querySelector('button[type=submit]');
+    if (b) { b.disabled = true; b.textContent = 'Ищу в базе…'; }
+    var w = document.getElementById('wait');
+    if (w) { w.hidden = false; w.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+  });
+});
+</script>
 </body>
 </html>
 """
