@@ -206,15 +206,30 @@ PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ассистент по ВЭД</title>
 <style>""" + BASE_CSS + """
-  body { max-width: 62rem; }
-  .col { min-width: 0; }
-  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; align-items: start; }
-  @media (max-width: 56rem) { .split { grid-template-columns: 1fr; } }
-  .pane h2 { margin-top: .2rem; }
-  .lead { color: var(--muted); margin: .45rem 0 1.4rem; }
-  .brand { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
+  /* витрина — две панели на весь экран (как сплит в редакторе кода) */
+  html, body { height: 100%; }
+  body {
+    max-width: none; margin: 0; padding: 0; min-height: 0;
+    display: flex; flex-direction: column; overflow: hidden;
+    background: #EFE7DA;
+  }
+  .bar {
+    display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap;
+    padding: .8rem 1.2rem; flex: 0 0 auto;
+    background: var(--card); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--card-line);
+  }
+  .bar h1 { font-size: 1.25rem; }
+  .split { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; }
+  .col { min-width: 0; overflow-y: auto; padding: 1.1rem 1.2rem; }
+  .col-left { border-right: 1px solid var(--card-line); display: flex; flex-direction: column; }
+  .col-right { display: flex; flex-direction: column; }
+  .pane h2 { margin: 0 0 .55rem; }
+  .lead { color: var(--muted); font-size: .9rem; margin: .3rem 0 0; }
+  .askform { flex: 1 1 auto; display: flex; flex-direction: column; margin-top: 1rem; }
+  .askform textarea { flex: 1 1 auto; }
   textarea {
-    width: 100%; min-height: 9.5rem; resize: vertical; font: inherit;
+    width: 100%; min-height: 6rem; resize: none; font: inherit;
     border: 1px solid var(--brown-soft); border-radius: 6px; padding: .7rem .85rem;
     background: rgba(255,255,255,.75); color: var(--ink);
   }
@@ -226,31 +241,38 @@ PAGE = """<!doctype html>
     background: rgba(119, 87, 58, .1); border: 1px solid var(--brown-soft);
     color: var(--ink); font-size: .9rem;
   }
-  .examples { display: flex; align-items: center; flex-wrap: wrap; gap: .45rem; margin-top: .9rem; }
+  .examples { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: .45rem; margin-top: .9rem; }
   .examples .chip { cursor: pointer; font: inherit; font-size: .78rem; border: 1px solid var(--card-line); background: var(--chip); color: var(--muted); }
   .examples .chip:hover { background: #EFE9DE; }
   .examples .label { font-size: .82rem; color: var(--muted); }
   .examples form { display: inline; margin: 0; }
+  .note { margin-top: .7rem; color: var(--muted); font-size: .78rem; }
   .answer { background: var(--card); backdrop-filter: blur(12px);
     border: 1px solid var(--card-line); border-radius: 8px;
-    padding: 1rem 1.1rem; white-space: pre-wrap; box-shadow: var(--shadow); }
+    padding: 1rem 1.1rem; white-space: pre-wrap; box-shadow: var(--shadow);
+    flex: 0 1 auto; }
+  .answer.empty { color: var(--muted); }
   .meta { display: flex; gap: .45rem; margin-top: .55rem; flex-wrap: wrap; }
   .error { color: var(--danger); font-size: .95rem; }
-  footer { margin-top: 2.2rem; color: var(--muted); font-size: .85rem; }
+  @media (max-width: 52rem) {
+    body { overflow: auto; min-height: 100vh; height: auto; }
+    .split { grid-template-columns: 1fr; }
+    .col { overflow-y: visible; }
+    .col-left { border-right: 0; border-bottom: 1px solid var(--card-line); min-height: 16rem; }
+  }
 </style>
 </head>
 <body>
-<div class="brand">
+<div class="bar">
   <h1>ИИ-ассистент для ВЭД</h1>
+  <span class="lead">Таможня, Incoterms, ТН ВЭД, формы расчётов, валютный контроль</span>
   <a class="chip" href="/about">как работает</a>
 </div>
-<p class="lead">Таможня, Incoterms, ТН ВЭД, формы расчётов, валютный контроль —
-  ответы по базе документов с указанием источников.</p>
 
 <div class="split">
-  <div class="col">
+  <div class="col col-left">
     <div id="wait" hidden>Ищу ответ в базе — обычно 20–60 секунд. Страница не зависла, просто ждём модель.</div>
-    <form class="card" method="post" action="/ask">
+    <form class="card askform" method="post" action="/ask">
       <textarea name="query" placeholder="Ваш вопрос по ВЭД…" required>{{ query_text }}</textarea>
       <div class="row">
         <button type="submit">Спросить</button>
@@ -266,9 +288,11 @@ PAGE = """<!doctype html>
       </form>
       {% endfor %}
     </div>
+    <p class="note">Точность норм проверяйте по актуальной редакции НПА ·
+      <a href="/admin">панель оператора</a></p>
   </div>
 
-  <div class="col pane">
+  <div class="col col-right pane">
     {% if answer %}
       <h2>Ответ</h2>
       {% if from_cache %}<div class="meta" style="margin-top: 0; margin-bottom: .55rem"><span class="chip good">из кеша — ответ мгновенный, без расхода токенов</span></div>{% endif %}
@@ -281,15 +305,10 @@ PAGE = """<!doctype html>
       <p class="error">{{ error }}</p>
     {% else %}
       <h2>Ответ</h2>
-      <div class="answer muted">Здесь появится ответ — с указанием документов, по которым он собран.</div>
+      <div class="answer empty">Здесь появится ответ — с указанием документов, по которым он собран.</div>
     {% endif %}
   </div>
 </div>
-
-<footer>
-  Точность норм проверяйте по актуальной редакции НПА ·
-  <a href="/admin">панель оператора</a>
-</footer>
 <script>
 // Пока идёт генерация: надпись «не зависло» + кнопки в неактивное состояние
 document.querySelectorAll('form[action="/ask"]').forEach(function (f) {
