@@ -44,7 +44,8 @@ class RequestLogger:
                  db_path: str = "request_logs.db",
                  jsonl_path: str = "request_logs.jsonl",
                  retention_days: int = None,
-                 max_query_len: int = 2000):
+                 max_query_len: int = 2000,
+                 source: str = "web"):
         """
         Args:
             db_path: путь к SQLite-базе логов
@@ -52,10 +53,14 @@ class RequestLogger:
             retention_days: срок хранения логов в днях (None — взять LOG_RETENTION_DAYS
                             из окружения, по умолчанию 90)
             max_query_len: максимальная длина запроса (длиннее — отклонение)
+            source: канал запросов по умолчанию (web / console / telegram — как источник
+                    запроса в схеме урока; у веб-канала нет юзеров, поэтому
+                    персональных данных нет, только канал)
         """
         self.db_path = db_path
         self.jsonl_path = jsonl_path
         self.max_query_len = max_query_len
+        self.source = source
 
         if retention_days is None:
             retention_days = int(os.getenv("LOG_RETENTION_DAYS", "90"))
@@ -90,6 +95,14 @@ class RequestLogger:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_log_created ON request_log(created_at)")
         conn.commit()
         conn.close()
+        # Миграция старых баз: колонка source (канал запроса) появилась позже
+        conn = sqlite3.connect(self.db_path)
+        columns = [row[1] for row in conn.execute("PRAGMA table_info(request_log)")]
+        if columns and "source" not in columns:
+            conn.execute("ALTER TABLE request_log ADD COLUMN source TEXT")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_log_source ON request_log(source)")
+            conn.commit()
+        conn.close()
 
     # ------------------------------------------------------------------ API
 
@@ -101,11 +114,14 @@ class RequestLogger:
             reason: str = None, model: str = None,
             prompt_tokens: int = None, completion_tokens: int = None,
             duration_ms: int = None, from_cache: bool = False,
-            error: str = None):
+            error: str = None, source: str = None):
         """
         Запись события конвейера. Текст запроса перед записью проходит
-        PII-фильтр (анонимность по уроку).
+        PII-фильтр (анонимность по уроку). Канал запроса (source) берётся
+        из конструктора, отдельное событие может переопределить.
         """
+        if source is None:
+            source = self.source
         query_masked = self.mask_pii(query)[:500] if query else None
 
         conn = sqlite3.connect(self.db_path)
@@ -113,10 +129,11 @@ class RequestLogger:
         cursor.execute("""
             INSERT INTO request_log
                 (request_id, event, reason, model, prompt_tokens,
-                 completion_tokens, duration_ms, from_cache, error, query_masked)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 completion_tokens, duration_ms, from_cache, error, query_masked, source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (request_id, event, reason, model, prompt_tokens,
-              completion_tokens, duration_ms, int(from_cache), error, query_masked))
+              completion_tokens, duration_ms, int(from_cache), error, query_masked,
+              source))
         conn.commit()
         conn.close()
 
@@ -126,7 +143,7 @@ class RequestLogger:
             "model": model, "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens, "duration_ms": duration_ms,
             "from_cache": from_cache, "error": error,
-            "query_masked": query_masked,
+            "query_masked": query_masked, "source": source,
             "created_at": datetime.now().isoformat(timespec="seconds"),
         }
         self._append_jsonl(record)
@@ -247,6 +264,14 @@ class RequestLogger:
         """, (EVENT_RECEIVED,))
         first_at, last_at = cursor.fetchone()
 
+        # Разбивка запросов по источникам (каналам) — поле source из схемы урока
+        cursor.execute(f"""
+            SELECT COALESCE(source, 'unknown'), COUNT(*) FROM request_log
+            WHERE event = ? AND created_at >= {since}
+            GROUP BY source
+        """, (EVENT_RECEIVED,))
+        by_source = {row[0]: row[1] for row in cursor.fetchall()}
+
         conn.close()
 
         cache_share = round(100.0 * cached / answered, 1) if answered else 0.0
@@ -259,6 +284,7 @@ class RequestLogger:
             "accepted": accepted,
             "rejected": sum(rejected_by_reason.values()),
             "rejected_by_reason": rejected_by_reason,
+            "by_source": by_source,
             "answered": answered or 0,
             "cache_hits": cached or 0,
             "cache_share_pct": cache_share,

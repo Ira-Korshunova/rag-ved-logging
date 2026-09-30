@@ -142,7 +142,8 @@ def main():
         pipeline = RAGPipeline(
             collection_name="api_rag_collection",
             cache_db_path="api_rag_cache.db",
-            data_file="data"
+            data_file="data",
+            source="console"
         )
         print("\n✅ Система готова к работе!\n")
         

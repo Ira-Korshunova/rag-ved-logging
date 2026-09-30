@@ -215,5 +215,56 @@ class TestJsonl:
         assert lines[1]["event"] == EVENT_SENT
 
 
+class TestSource:
+    """Поле source (канал запроса) — как источник запроса в схеме урока."""
+
+    def test_default_source_written(self, logger):
+        rid = logger.new_request()
+        logger.log(rid, EVENT_RECEIVED, query="вопрос")
+        conn = sqlite3.connect(logger.db_path)
+        assert conn.execute(
+            "SELECT source FROM request_log LIMIT 1").fetchone()[0] == "web"
+
+    def test_custom_source(self, logger):
+        rid = logger.new_request()
+        logger.log(rid, EVENT_RECEIVED, query="вопрос", source="console")
+        conn = sqlite3.connect(logger.db_path)
+        assert conn.execute(
+            "SELECT source FROM request_log LIMIT 1").fetchone()[0] == "console"
+
+    def test_stats_by_source(self, logger):
+        rid = logger.new_request()
+        logger.log(rid, EVENT_RECEIVED, query="вопрос 1", source="web")
+        rid2 = logger.new_request()
+        logger.log(rid2, EVENT_RECEIVED, query="вопрос 2", source="console")
+        stats = logger.get_stats(period_days=1)
+        assert stats["by_source"] == {"web": 1, "console": 1}
+
+    def test_migration_adds_source_column(self, tmp_path):
+        """Старая база без колонки source поднимается с миграцией."""
+        db = str(tmp_path / "old.db")
+        conn = sqlite3.connect(db)
+        conn.execute("""CREATE TABLE request_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            request_id TEXT NOT NULL,
+            event TEXT NOT NULL,
+            reason TEXT, model TEXT,
+            prompt_tokens INTEGER, completion_tokens INTEGER,
+            duration_ms INTEGER,
+            from_cache INTEGER DEFAULT 0,
+            error TEXT, query_masked TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""")
+        conn.commit()
+        conn.close()
+        lg = RequestLogger(db_path=db, jsonl_path=str(tmp_path / "o.jsonl"),
+                           retention_days=90)
+        columns = [r[1] for r in sqlite3.connect(db)
+                   .execute("PRAGMA table_info(request_log)")]
+        assert "source" in columns
+        rid = lg.new_request()
+        lg.log(rid, EVENT_RECEIVED, query="q")  # запись прошла в старую базу
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

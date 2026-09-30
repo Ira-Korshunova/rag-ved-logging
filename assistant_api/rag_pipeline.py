@@ -24,7 +24,8 @@ class RAGPipeline:
                  collection_name: str = "rag_collection",
                  cache_db_path: str = "rag_cache.db",
                  data_file: str = "data",
-                 model: str = None):
+                 model: str = None,
+                 source: str = "web"):
         """
         Инициализация RAG pipeline.
 
@@ -34,6 +35,7 @@ class RAGPipeline:
             data_file: путь к файлу ИЛИ папке с документами (по умолчанию data/)
             model: модель LLM для генерации ответов. Если None — берётся MODEL_NAME из .env,
                    иначе gpt-4o-mini
+            source: канал запросов для лога (web / console / telegram)
         """
         # Проверка API ключа (LLM_API_KEY или общий OPENAI_API_KEY)
         if not (os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY")):
@@ -79,7 +81,7 @@ class RAGPipeline:
 
         # Логирование по конвейеру урока PEcf09 (5 событий на запрос)
         log_db_path = os.getenv("LOG_DB_PATH", "request_logs.db")
-        self.logger = RequestLogger(db_path=log_db_path)
+        self.logger = RequestLogger(db_path=log_db_path, source=source)
         print(f"Инициализация логирования... ({log_db_path})")
 
         print("RAG Pipeline инициализирован (API mode)")

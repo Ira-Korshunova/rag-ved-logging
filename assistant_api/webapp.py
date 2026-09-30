@@ -116,6 +116,8 @@ STATS_PAGE = """
   <tr><td>Принято</td><td>{{ stats.accepted }}</td></tr>
   <tr><td>Отклонено</td><td>{{ stats.rejected }}
       {% for reason, n in stats.rejected_by_reason.items() %} — {{ reason }}: {{ n }}{% endfor %}</td></tr>
+  <tr><td>Запросов по источникам</td><td>
+      {% for src, n in stats.by_source.items() %}{{ src }}: {{ n }}{% if not loop.last %}, {% endif %}{% endfor %}</td></tr>
   <tr><td>Ответов подготовлено</td><td>{{ stats.answered }}</td></tr>
   <tr><td>Из кеша</td><td>{{ stats.cache_hits }} ({{ stats.cache_share_pct }}%)</td></tr>
   <tr><td>Средняя длительность</td><td>{{ stats.avg_duration_ms or '—' }} мс</td></tr>
