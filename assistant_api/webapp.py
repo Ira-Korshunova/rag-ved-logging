@@ -206,6 +206,11 @@ PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ассистент по ВЭД</title>
 <style>""" + BASE_CSS + """
+  body { max-width: 62rem; }
+  .col { min-width: 0; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; align-items: start; }
+  @media (max-width: 56rem) { .split { grid-template-columns: 1fr; } }
+  .pane h2 { margin-top: .2rem; }
   .lead { color: var(--muted); margin: .45rem 0 1.4rem; }
   .brand { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
   textarea {
@@ -217,7 +222,7 @@ PAGE = """<!doctype html>
   .row { display: flex; align-items: center; gap: .8rem; margin-top: .7rem; flex-wrap: wrap; }
   .hint { color: var(--muted); font-size: .82rem; }
   #wait {
-    margin-top: 1rem; padding: .8rem 1rem; border-radius: 6px;
+    margin-bottom: 1rem; padding: .8rem 1rem; border-radius: 6px;
     background: rgba(119, 87, 58, .1); border: 1px solid var(--brown-soft);
     color: var(--ink); font-size: .9rem;
   }
@@ -241,39 +246,49 @@ PAGE = """<!doctype html>
 </div>
 <p class="lead">Таможня, Incoterms, ТН ВЭД, формы расчётов, валютный контроль —
   ответы по базе документов с указанием источников.</p>
-<div id="wait" hidden>Ищу ответ в базе — обычно 20–60 секунд. Страница не зависла, просто ждём модель.</div>
-<form class="card" method="post" action="/ask">
-  <textarea name="query" placeholder="Ваш вопрос по ВЭД…" required>{{ query_text }}</textarea>
-  <div class="row">
-    <button type="submit">Спросить</button>
-    <span class="hint">Ответ собирается строго по базе документов — под ответом видно, по каким именно</span>
-  </div>
-</form>
 
-<div class="examples"><span class="label">Примеры:</span>
-  {% for ex in examples %}
-  <form method="post" action="/ask">
-    <input type="hidden" name="query" value="{{ ex }}">
-    <button type="submit" class="chip">{{ ex }}</button>
-  </form>
-  {% endfor %}
+<div class="split">
+  <div class="col">
+    <div id="wait" hidden>Ищу ответ в базе — обычно 20–60 секунд. Страница не зависла, просто ждём модель.</div>
+    <form class="card" method="post" action="/ask">
+      <textarea name="query" placeholder="Ваш вопрос по ВЭД…" required>{{ query_text }}</textarea>
+      <div class="row">
+        <button type="submit">Спросить</button>
+        <span class="hint">Ответ строго по базе документов — с указанием источников</span>
+      </div>
+    </form>
+
+    <div class="examples"><span class="label">Примеры:</span>
+      {% for ex in examples %}
+      <form method="post" action="/ask">
+        <input type="hidden" name="query" value="{{ ex }}">
+        <button type="submit" class="chip">{{ ex }}</button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="col pane">
+    {% if answer %}
+      <h2>Ответ</h2>
+      {% if from_cache %}<div class="meta" style="margin-top: 0; margin-bottom: .55rem"><span class="chip good">из кеша — ответ мгновенный, без расхода токенов</span></div>{% endif %}
+      <div class="answer">{{ answer }}</div>
+      {% if sources %}
+        <div class="meta"><span class="chip">источники: <b>{% for s in sources %}{{ s }}{% if not loop.last %}, {% endif %}{% endfor %}</b></span></div>
+      {% endif %}
+    {% elif error %}
+      <h2>Ответ</h2>
+      <p class="error">{{ error }}</p>
+    {% else %}
+      <h2>Ответ</h2>
+      <div class="answer muted">Здесь появится ответ — с указанием документов, по которым он собран.</div>
+    {% endif %}
+  </div>
 </div>
 
-{% if answer %}
-  <h2>Ответ</h2>
-  {% if from_cache %}<div class="meta"><span class="chip good">из кеша — ответ мгновенный, без расхода токенов</span></div>{% endif %}
-  <div class="answer">{{ answer }}</div>
-  {% if sources %}
-    <div class="meta"><span class="chip">источники: <b>{% for s in sources %}{{ s }}{% if not loop.last %}, {% endif %}{% endfor %}</b></span></div>
-  {% endif %}
-{% endif %}
-{% if error %}
-  <div class="meta" style="margin-top: 1rem"><p class="error">{{ error }}</p></div>
-{% endif %}
-
 <footer>
-  Ассистент отвечает по документам своей базы; точность норм проверяйте
-  по актуальной редакции НПА. <a href="/about">Как он работает →</a>
+  Точность норм проверяйте по актуальной редакции НПА ·
+  <a href="/admin">панель оператора</a>
 </footer>
 <script>
 // Пока идёт генерация: надпись «не зависло» + кнопки в неактивное состояние
