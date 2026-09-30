@@ -15,28 +15,28 @@ Claude даёт команды по одной, смотрит на вывод �
 В панели управления DNS `cygnusweb.ru` добавить **A-запись**: `ask` → `72.56.94.48`
 (как сделано для `porta` и `white`). Без неё Traefik не сможет выпустить сертификат.
 
-## Шаг 1 (Ирина, с Mac): залить код на сервер
+## Шаг 1 (Ирина, на сервере): получить код из GitHub
 
-Сначала один раз создать папку и отдать её себе:
+Репозиторий: https://github.com/Ira-Korshunova/rag-ved-logging (публичный,
+секретов не содержит — они в .env на сервере).
 
-```bash
-ssh irina@72.56.94.48 'sudo mkdir -p /opt/rag-ved && sudo chown irina /opt/rag-ved'
-```
-
-Потом залить:
+Первый раз:
 
 ```bash
-rsync -az --delete \
-  --exclude '.git/' --exclude '__pycache__/' --exclude '.pytest_cache/' \
-  --exclude '.DS_Store' --exclude '.env' --exclude '.venv/' --exclude '*.db' \
-  --exclude '*.jsonl' --exclude 'КЛЮЧ_*' \
-  -e ssh "/Users/irina/Desktop/ДЗ/ДЗмод8_9/rag-ved-logging/" \
-  irina@72.56.94.48:/opt/rag-ved/
+sudo mkdir -p /opt && sudo chown irina /opt
+git clone https://github.com/Ira-Korshunova/rag-ved-logging /opt/rag-ved
 ```
 
-Хранилища (`*.db`, `*.jsonl`) не тащим — на сервере они появятся в томе.
-`chroma_db_local/` (готовый индекс ~165 чанков под локальные BGE-M3) тащим —
-он нужен как стартовый сид.
+Обновить до свежей версии:
+
+```bash
+cd /opt/rag-ved && git pull
+```
+
+Стартовый векторный индекс (`assistant_api/chroma_db_local/`) лежит в
+репозитории — после клона он уже на месте, ничего индексировать не надо.
+
+Хранилища (`*.db`, `*.jsonl`) в git не входят — они появятся в томе.
 
 ## Шаг 2 (Ирина, руками на сервере): ключи
 

@@ -279,6 +279,19 @@ class RequestLogger:
         """, (EVENT_RECEIVED,))
         by_source = {row[0]: row[1] for row in cursor.fetchall()}
 
+        # Пользователи (telegram): сколько уникальных и по кому запросы
+        cursor.execute(f"""
+            SELECT COUNT(DISTINCT user_id) FROM request_log
+            WHERE event = ? AND user_id IS NOT NULL AND created_at >= {since}
+        """, (EVENT_RECEIVED,))
+        unique_users = cursor.fetchone()[0]
+        cursor.execute(f"""
+            SELECT user_id, COUNT(*) FROM request_log
+            WHERE event = ? AND user_id IS NOT NULL AND created_at >= {since}
+            GROUP BY user_id ORDER BY COUNT(*) DESC
+        """, (EVENT_RECEIVED,))
+        by_user = {row[0]: row[1] for row in cursor.fetchall()}
+
         conn.close()
 
         cache_share = round(100.0 * cached / answered, 1) if answered else 0.0
@@ -292,6 +305,8 @@ class RequestLogger:
             "rejected": sum(rejected_by_reason.values()),
             "rejected_by_reason": rejected_by_reason,
             "by_source": by_source,
+            "unique_users": unique_users,
+            "by_user": by_user,
             "answered": answered or 0,
             "cache_hits": cached or 0,
             "cache_share_pct": cache_share,
@@ -313,7 +328,8 @@ class RequestLogger:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT created_at, event, COALESCE(source, 'unknown'),
-                   query_masked, from_cache, duration_ms, reason, error
+                   query_masked, from_cache, duration_ms, reason, error,
+                   model, prompt_tokens, completion_tokens
             FROM request_log
             ORDER BY id DESC
             LIMIT ?
@@ -321,7 +337,8 @@ class RequestLogger:
         rows = cursor.fetchall()
         conn.close()
         events = []
-        for created_at, event, source, query, cached, ms, reason, error in rows:
+        for created_at, event, source, query, cached, ms, reason, error, \
+                model, ptok, ctok in rows:
             events.append({
                 "time": (created_at or "")[:16],
                 "event": event,
@@ -331,6 +348,9 @@ class RequestLogger:
                 "duration_ms": ms,
                 "reason": reason,
                 "error": error,
+                "model": model,
+                "prompt_tokens": ptok,
+                "completion_tokens": ctok,
             })
         return {"events": events}
 

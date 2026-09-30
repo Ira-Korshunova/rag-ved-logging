@@ -167,7 +167,7 @@ BASE_CSS = """
   .chip b { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
   .card {
     background: var(--card); backdrop-filter: blur(12px);
-    border: 1px solid var(--card-line); border-radius: 8px;
+    border: 1px solid var(--card-line); border-radius: 4px;
     padding: 1rem; box-shadow: var(--shadow);
   }
   .muted { color: var(--muted); }
@@ -182,7 +182,7 @@ TABLE_CSS = """
   }
   .tile {
     background: var(--card); backdrop-filter: blur(12px);
-    border: 1px solid var(--card-line); border-radius: 8px; padding: .8rem .95rem;
+    border: 1px solid var(--card-line); border-radius: 4px; padding: .8rem .95rem;
     box-shadow: var(--shadow);
   }
   .tile .n { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
@@ -191,7 +191,7 @@ TABLE_CSS = """
   table {
     border-collapse: collapse; width: 100%; margin: 0;
     background: var(--card); backdrop-filter: blur(12px);
-    border: 1px solid var(--card-line); border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--card-line); border-radius: 4px; overflow: hidden;
     box-shadow: var(--shadow); font-variant-numeric: tabular-nums;
   }
   td, th { border-bottom: 1px solid rgba(139, 90, 43, .14); padding: .5rem .75rem; text-align: left; overflow-wrap: anywhere; }
@@ -437,21 +437,38 @@ ADMIN_PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Панель оператора</title>
 <style>""" + BASE_CSS + TABLE_CSS + """
-  .brand { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
-  .links { margin: .4rem 0 0; font-size: .88rem; }
+  .bar {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(239, 231, 218, .55); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--card-line);
+    margin: -2.2rem -1rem 1.2rem; padding: .65rem 1.2rem;
+  }
+  .bar-in {
+    max-width: 46rem; margin: 0 auto;
+    display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap;
+  }
+  .bar h1 { font-size: 1.1rem; margin: 0; letter-spacing: -.01em; margin-right: auto; }
+  .bar-in a {
+    text-decoration: none; font-weight: 600; font-size: .8rem; color: var(--brown);
+    border: 1px solid rgba(119, 87, 58, .12); border-radius: 3px;
+    background: transparent; padding: .2rem .6rem;
+  }
+  .bar-in a:hover { border-color: rgba(119, 87, 58, .25); }
   .msg { background: rgba(74, 107, 42, .12); border: 1px solid rgba(74, 107, 42, .3);
-    color: var(--good); padding: .6rem .8rem; border-radius: 6px; margin: .7rem 0; }
+    color: var(--good); padding: .6rem .8rem; border-radius: 4px; margin: .7rem 0; }
   .bad-msg { background: rgba(166, 50, 38, .08); border: 1px solid rgba(166, 50, 38, .3);
-    color: var(--danger); padding: .6rem .8rem; border-radius: 6px; margin: .7rem 0; }
+    color: var(--danger); padding: .6rem .8rem; border-radius: 4px; margin: .7rem 0; }
   input[type=file] { font: inherit; font-size: .9rem; color: var(--ink); }
   h2 { font-size: 1.02rem; margin: 1.7rem 0 .55rem; }
 </style></head>
 <body>
-<div class="brand">
-  <h1>Панель оператора</h1>
-  <span class="badge">база знаний · логи конвейера</span>
+<div class="bar">
+  <div class="bar-in">
+    <h1>Панель оператора</h1>
+    <a href="/">← витрина</a>
+    <a href="/admin?logout=1">выйти</a>
+  </div>
 </div>
-<p class="links"><a href="/">← витрина</a> · <a href="/admin?logout=1">выйти</a></p>
 
 <h2>Пополнение базы</h2>
 {% if ingest_msg %}<div class="msg">{{ ingest_msg }}</div>{% endif %}
@@ -473,6 +490,8 @@ ADMIN_PAGE = """<!doctype html>
 </div>
 
 <h2>Статистика за 7 дней</h2>
+<p class="muted" style="font-size: .82rem; margin: 0 0 .8rem">Модель ответа:
+  <b>{{ model_name }}</b> · Эмбеддинги: {{ embedding_provider }} / <b>{{ embedding_model }}</b></p>
 <div class="tiles">
   <div class="tile"><div class="n">{{ stats.total_requests }}</div><div class="l">запросов получено</div></div>
   <div class="tile"><div class="n good">{{ stats.accepted }}</div><div class="l">принято</div></div>
@@ -487,16 +506,29 @@ ADMIN_PAGE = """<!doctype html>
       {% for reason, n in stats.rejected_by_reason.items() %}<span class="reason">{{ reason }}: {{ n }}</span>{% endfor %}</td></tr>
   <tr><td>Запросов по источникам</td><td>
       {% for src, n in stats.by_source.items() %}{{ src }}: {{ n }}{% if not loop.last %}, {% endif %}{% endfor %}</td></tr>
+  <tr><td>Пользователи (telegram)</td><td>
+      {{ stats.unique_users }} уникальных
+      {% for uid, n in stats.by_user.items() %}<span class="reason">{{ uid }}: {{ n }}</span>{% endfor %}</td></tr>
   <tr><td>Ответов подготовлено</td><td>{{ stats.answered }}</td></tr>
   <tr><td>Из кеша</td><td>{{ stats.cache_hits }} ({{ stats.cache_share_pct }}%)</td></tr>
   <tr><td>Средняя длительность</td><td>{{ stats.avg_duration_ms or '—' }} мс</td></tr>
   <tr><td>Ошибок</td><td>{{ stats.errors }}</td></tr>
 </table></div>
 
+<h2>Токены по моделям (расход LLM)</h2>
+<div class="tablewrap"><table>
+  <tr><th>Модель</th><th>Prompt</th><th>Completion</th></tr>
+  {% for model, tok in stats.tokens_by_model.items() %}
+  <tr><td>{{ model }}</td><td>{{ tok.prompt }}</td><td>{{ tok.completion }}</td></tr>
+  {% else %}
+  <tr><td colspan="3">Нет данных за период</td></tr>
+  {% endfor %}
+</table></div>
+
 <h2>Последние события конвейера</h2>
 {% if feed %}
 <div class="tablewrap"><table>
-  <tr><th>Время</th><th>Событие</th><th>Источник</th><th>Вопрос</th><th>Кеш</th><th>мс</th><th>Заметка</th></tr>
+  <tr><th>Время</th><th>Событие</th><th>Источник</th><th>Вопрос</th><th>Кеш</th><th>мс</th><th>Модель</th><th>Токены (p/c)</th><th>Заметка</th></tr>
   {% for e in feed %}
   <tr {% if e.error %}class="err-row"{% endif %}>
     <td>{{ e.time }}</td>
@@ -505,6 +537,8 @@ ADMIN_PAGE = """<!doctype html>
     <td>{{ e.query or '—' }}</td>
     <td>{% if e.from_cache is not none %}{{ 'да' if e.from_cache else '—' }}{% else %}—{% endif %}</td>
     <td>{% if e.duration_ms %}{{ e.duration_ms }}{% else %}—{% endif %}</td>
+    <td>{{ e.model or '—' }}</td>
+    <td>{% if e.prompt_tokens is not none %}{{ e.prompt_tokens }}/{{ e.completion_tokens }}{% else %}—{% endif %}</td>
     <td>{% if e.error %}⚠ {{ e.error }}{% elif e.reason %}{{ e.reason }}{% else %}—{% endif %}</td>
   </tr>
   {% endfor %}
@@ -651,6 +685,9 @@ def admin():
     return render_template_string(
         ADMIN_PAGE,
         stats=pipeline.logger.get_stats(period_days=7),
+        model_name=os.getenv("MODEL_NAME", "—"),
+        embedding_provider=os.getenv("EMBEDDING_PROVIDER", "—"),
+        embedding_model=os.getenv("EMBEDDING_MODEL", "—"),
         feed=pipeline.logger.get_recent(limit=25)["events"],
         chunk_count=pipeline.vector_store.get_collection_stats()["count"],
         ingest_msg=request.args.get("upload") or None,
