@@ -123,65 +123,147 @@ def _safe_filename(name):
 
 
 # --------------------------------------------------------------- шаблоны
-PAGE = """
-<!doctype html>
+# Единая стилистика — «тёплая карта Porta» (макеты предпросмотр_дизайна:
+# главная.html и статистика.html, фон porta-map-warm-v3.png)
+BASE_CSS = """
+  :root {
+    --ink: #3A2A18; --muted: #7A6A55; --line: rgba(139, 90, 43, .25);
+    --card: rgba(251, 248, 241, .92); --card-line: rgba(255, 255, 255, .7);
+    --shadow: 0 2px 16px rgba(60, 40, 20, .12);
+    --brown: #77573A; --brown-soft: rgba(119, 87, 58, .35);
+    --good: #4A6B2A; --danger: #A63226; --chip: rgba(251, 248, 241, .8);
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", sans-serif;
+    max-width: 46rem; margin: 0 auto; padding: 2.2rem 1rem 3rem;
+    color: var(--ink); line-height: 1.55; position: relative; min-height: 100vh;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -1;
+    background: url("/static/porta-map-warm-v3.png") center / cover no-repeat;
+    opacity: .34; filter: saturate(95%) contrast(1.05);
+  }
+  h1 { font-size: 1.5rem; margin: 0; letter-spacing: -.01em; }
+  h2 { font-size: 1.05rem; margin: 1.6rem 0 .5rem; }
+  button, .btn {
+    font: inherit; font-weight: 600; cursor: pointer; border: 0; border-radius: 6px;
+    background: #DACDBE; color: #3A2A18; padding: .55rem 1.3rem; text-decoration: none;
+  }
+  button:hover, .btn:hover { background: #CDBFB0; }
+  .badge {
+    font-size: .72rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--brown); border: 1px solid var(--brown-soft);
+    padding: .18rem .55rem; border-radius: 6px; background: rgba(251,248,241,.7);
+  }
+  .chip {
+    font-size: .78rem; color: var(--muted); background: var(--chip);
+    border: 1px solid var(--card-line); border-radius: 6px; padding: .2rem .65rem;
+    text-decoration: none;
+  }
+  .chip b { color: var(--ink); font-weight: 600; }
+  .card {
+    background: var(--card); backdrop-filter: blur(12px);
+    border: 1px solid var(--card-line); border-radius: 8px;
+    padding: 1rem; box-shadow: var(--shadow);
+  }
+  .muted { color: var(--muted); }
+  .good { color: var(--good); font-weight: 600; }
+  a { color: var(--brown); text-underline-offset: 3px; }
+"""
+TABLE_CSS = """
+  .tiles {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    gap: .7rem; margin: 1.2rem 0 .4rem;
+  }
+  .tile {
+    background: var(--card); backdrop-filter: blur(12px);
+    border: 1px solid var(--card-line); border-radius: 8px; padding: .8rem .95rem;
+    box-shadow: var(--shadow);
+  }
+  .tile .n { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .tile .l { color: var(--muted); font-size: .78rem; margin-top: .15rem; }
+  table {
+    border-collapse: collapse; width: 100%; margin: .4rem 0 1.1rem;
+    background: var(--card); backdrop-filter: blur(12px);
+    border: 1px solid var(--card-line); border-radius: 8px; overflow: hidden;
+    box-shadow: var(--shadow); font-variant-numeric: tabular-nums;
+  }
+  td, th { border-bottom: 1px solid rgba(139, 90, 43, .14); padding: .5rem .75rem; text-align: left; }
+  tr:last-child td { border-bottom: 0; }
+  th { background: rgba(139, 90, 43, .1); font-size: .82rem; font-weight: 600; color: var(--muted); }
+  .reason {
+    display: inline-block; font-size: .78rem; background: rgba(139, 90, 43, .1);
+    color: var(--muted); border-radius: 6px; padding: .15rem .6rem; margin: .1rem .25rem .1rem 0;
+  }
+  .err-row td { background: rgba(166, 50, 38, .06); }
+"""
+
+PAGE = """<!doctype html>
 <html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ассистент по ВЭД</title>
-<style>
-  body { font-family: -apple-system, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #222; }
-  header { display: flex; justify-content: space-between; align-items: baseline; }
-  h1 { font-size: 1.4rem; margin-bottom: .2rem; }
-  .sub { color: #666; margin-top: 0; }
-  textarea, button { font-size: 1rem; }
-  textarea { width: 100%; box-sizing: border-box; min-height: 90px; }
-  button { padding: .5rem 1.2rem; cursor: pointer; }
-  .examples { margin-top: .6rem; display: flex; flex-wrap: wrap; gap: .5rem; }
-  .examples button { padding: .35rem .8rem; font-size: .9rem; border-radius: 16px; background: #eee; border: 1px solid #ddd; }
-  .answer { background: #f5f5f0; padding: 1rem; border-radius: 8px; white-space: pre-wrap; }
-  .sources { color: #555; font-size: .88rem; margin-top: .6rem; }
-  .sources code { background: #eee; padding: .1rem .4rem; border-radius: 4px; }
-  .meta { color: #777; font-size: .85rem; margin-top: .5rem; }
-  .badge { display: inline-block; background: #e7f0e7; color: #2a6b2a; font-size: .78rem; padding: .1rem .55rem; border-radius: 10px; }
-  .error { color: #b00; font-size: .95rem; }
-  a { color: #06c; }
-  footer { margin-top: 2rem; color: #999; font-size: .85rem; }
+<style>""" + BASE_CSS + """
+  .lead { color: var(--muted); margin: .45rem 0 1.4rem; }
+  .brand { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
+  textarea {
+    width: 100%; min-height: 5.2rem; resize: vertical; font: inherit;
+    border: 1px solid var(--brown-soft); border-radius: 6px; padding: .7rem .85rem;
+    background: rgba(255,255,255,.75); color: var(--ink);
+  }
+  textarea:focus { outline: 2px solid var(--brown); outline-offset: 1px; }
+  .row { display: flex; align-items: center; gap: .8rem; margin-top: .7rem; flex-wrap: wrap; }
+  .hint { color: var(--muted); font-size: .82rem; }
+  .examples { display: flex; align-items: center; flex-wrap: wrap; gap: .45rem; margin-top: .9rem; }
+  .examples .chip { cursor: pointer; font: inherit; font-size: .78rem; border: 1px solid var(--card-line); background: var(--chip); color: var(--muted); }
+  .examples .chip:hover { background: #EFE9DE; }
+  .examples .label { font-size: .82rem; color: var(--muted); }
+  .examples form { display: inline; margin: 0; }
+  .answer { background: var(--card); backdrop-filter: blur(12px);
+    border: 1px solid var(--card-line); border-radius: 8px;
+    padding: 1rem 1.1rem; white-space: pre-wrap; box-shadow: var(--shadow); }
+  .meta { display: flex; gap: .45rem; margin-top: .55rem; flex-wrap: wrap; }
+  .error { color: var(--danger); font-size: .95rem; }
+  footer { margin-top: 2.2rem; color: var(--muted); font-size: .85rem; }
 </style>
 </head>
 <body>
-<header>
-  <h1>Ассистент по ВЭД</h1>
-  <a href="/about">О ассистенте</a>
-</header>
-<p class="sub">Таможенные процедуры, Incoterms, ТН ВЭД, формы расчётов, валютный
-контроль. Отвечает по базе документов — под ответом видно, по каким именно.</p>
-
-<form method="post" action="/ask">
-  <textarea name="query" placeholder="Ваш вопрос по ВЭД..." required>{{ query_text }}</textarea>
-  <p><button type="submit">Спросить</button></p>
+<div class="brand">
+  <h1>ИИ-ассистент для ВЭД</h1>
+  <a class="chip" href="/about">как работает</a>
+</div>
+<p class="lead">Таможня, Incoterms, ТН ВЭД, формы расчётов, валютный контроль —
+  ответы по базе документов с указанием источников.</p>
+<form class="card" method="post" action="/ask">
+  <textarea name="query" placeholder="Ваш вопрос по ВЭД…" required>{{ query_text }}</textarea>
+  <div class="row">
+    <button type="submit">Спросить</button>
+    <span class="hint">Ответ собирается строго по базе документов — под ответом видно, по каким именно</span>
+  </div>
 </form>
 
-<div class="examples">Примеры:
+<div class="examples"><span class="label">Примеры:</span>
   {% for ex in examples %}
-  <form method="post" action="/ask" style="display:inline">
+  <form method="post" action="/ask">
     <input type="hidden" name="query" value="{{ ex }}">
-    <button type="submit">{{ ex }}</button>
+    <button type="submit" class="chip">{{ ex }}</button>
   </form>
   {% endfor %}
 </div>
 
 {% if answer %}
   <h2>Ответ</h2>
-  {% if from_cache %}<p class="meta"><span class="badge">из кеша — ответ быстрее и без расходов токенов</span></p>{% endif %}
+  {% if from_cache %}<div class="meta"><span class="chip good">из кеша — ответ мгновенный, без расхода токенов</span></div>{% endif %}
   <div class="answer">{{ answer }}</div>
   {% if sources %}
-    <p class="sources">Ответ собран по документам базы:
-      {% for s in sources %}<code>{{ s }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+    <div class="meta"><span class="chip">источники: <b>{% for s in sources %}{{ s }}{% if not loop.last %}, {% endif %}{% endfor %}</b></span></div>
   {% endif %}
 {% endif %}
-{% if error %}<p class="error">{{ error }}</p>{% endif %}
+{% if error %}
+  <div class="meta" style="margin-top: 1rem"><p class="error">{{ error }}</p></div>
+{% endif %}
 
 <footer>
   Ассистент отвечает по документам своей базы; точность норм проверяйте
@@ -191,28 +273,29 @@ PAGE = """
 </html>
 """
 
-ABOUT_PAGE = """
-<!doctype html>
+ABOUT_PAGE = """<!doctype html>
 <html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>О ассистенте</title>
-<style>
-  body { font-family: -apple-system, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #222; }
-  h2 { font-size: 1.1rem; margin-top: 1.4rem; }
+<title>О ассистенте — как работает</title>
+<style>""" + BASE_CSS + """
+  .section { margin-top: 1.1rem; }
+  ol, ul { margin: .3rem 0; padding-left: 1.3rem; }
   li { margin-bottom: .35rem; }
-  .muted { color: #666; }
-  a { color: #06c; }
+  h2 { font-size: 1.02rem; margin: 1.5rem 0 .45rem; }
 </style>
 </head>
 <body>
-<h1>О ассистенте</h1>
-<p>Ассистент отвечает на вопросы по внешнеэкономической деятельности —
+<div class="brand">
+  <h1>О ассистенте</h1>
+</div>
+<p class="lead">Отвечает на вопросы по внешнеэкономической деятельности:
 таможенные процедуры ЕАЭС, Incoterms 2020, ТН ВЭД, формы международных
 расчётов, валютный контроль (ФЗ-173), ТК ЕАЭС, ФЗ-289, решения ЕЭК.</p>
 
 <h2>Как получается ответ</h2>
+<div class="card section">
 <ol>
   <li>вопрос превращается в вектор и ищет ближайшие фрагменты базы знаний
       (ChromaDB, локальные эмбеддинги BAAI/bge-m3);</li>
@@ -220,8 +303,10 @@ ABOUT_PAGE = """
       контекст;</li>
   <li>модель отвечает строго по переданному контексту.</li>
 </ol>
+</div>
 
 <h2>Как доверять результату</h2>
+<div class="card section">
 <ul>
   <li><b>Источники под ответом</b> — видно, по каким документам базы он собран;</li>
   <li><b>Кеш</b> — одинаковые вопросы отвечаются мгновенно и одинаково
@@ -229,8 +314,10 @@ ABOUT_PAGE = """
   <li>база — конспекты действующих норм; перед применением сверяйте с
       актуальной редакцией НПА.</li>
 </ul>
+</div>
 
 <h2>Анонимность и логи</h2>
+<div class="card section">
 <ul>
   <li>каждый запрос проходит 5 контрольных точек: получен → принят/отклонён →
       обработка → ответ готов → отправлен;</li>
@@ -239,62 +326,70 @@ ABOUT_PAGE = """
   <li>логи хранятся {{ retention_days }} дней и дальше чистятся автоматически;</li>
   <li>операторская статистика ({% if has_stats %}страница под паролем{% else %}отключена — не задан пароль{% endif %}).</li>
 </ul>
+</div>
 
-<p class="muted"><a href="/">← К ассистенту</a></p>
+<p><a href="/">← К ассистенту</a></p>
 </body>
 </html>
 """
 
-LOGIN_PAGE = """
-<!doctype html>
+LOGIN_PAGE = """<!doctype html>
 <html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Панель оператора — вход</title>
-<style>
-  body { font-family: -apple-system, sans-serif; max-width: 420px; margin: 3rem auto; padding: 0 1rem; }
-  input { padding: .5rem; font-size: 1rem; width: 100%; box-sizing: border-box; }
-  button { font-size: 1rem; padding: .5rem 1.2rem; margin-top: .6rem; cursor: pointer; }
-  .err { color: #b00; }
+<style>""" + BASE_CSS + """
+  .wrap { max-width: 22rem; margin: 8vh auto 0; }
+  input[type=password] {
+    width: 100%; font: inherit; padding: .6rem .8rem; margin-top: .7rem;
+    border: 1px solid var(--brown-soft); border-radius: 6px;
+    background: rgba(255,255,255,.75); color: var(--ink);
+  }
+  input[type=password]:focus { outline: 2px solid var(--brown); outline-offset: 1px; }
+  button { margin-top: .9rem; width: 100%; }
 </style></head>
 <body>
-<h2>Панель оператора</h2>
-{% if no_password %}<p class="err">Панель отключена: не задан STATS_PASSWORD на сервере.</p>
-{% else %}Вход по паролю (переменная STATS_PASSWORD на сервере).
-{% if wrong %}<p class="err">Неверный пароль.</p>{% endif %}
+<div class="wrap">
+<div class="card">
+<h1>Панель оператора</h1>
+{% if no_password %}<p class="muted">Панель отключена: не задан STATS_PASSWORD на сервере.</p>
+{% else %}<p class="muted" style="font-size: .9rem">Вход по паролю (переменная STATS_PASSWORD на сервере).
+{% if wrong %}<span style="color: var(--danger)">Неверный пароль.</span>{% endif %}</p>
 <form method="post" action="/admin">
   <input type="password" name="password" placeholder="Пароль" required autofocus>
-  <p><button type="submit">Войти</button></p>
+  <button type="submit">Войти</button>
 </form>{% endif %}
-<p><a href="/">← К ассистенту</a></p>
+<p style="margin-top: 1.2rem"><a href="/">← К ассистенту</a></p>
+</div>
+</div>
 </body></html>
 """
 
-ADMIN_PAGE = """
-<!doctype html>
+ADMIN_PAGE = """<!doctype html>
 <html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Панель оператора</title>
-<style>
-  body { font-family: -apple-system, sans-serif; max-width: 780px; margin: 2rem auto; padding: 0 1rem; }
-  h2 { font-size: 1.1rem; margin-top: 1.6rem; border-bottom: 1px solid #ddd; padding-bottom: .3rem; }
-  table { border-collapse: collapse; width: 100%; margin: .6rem 0 1rem; }
-  td, th { border: 1px solid #ddd; padding: .4rem .6rem; text-align: left; font-size: .9rem; }
-  th { background: #f0f0ea; }
-  input[type=file] { font-size: .9rem; }
-  button { padding: .5rem 1.2rem; cursor: pointer; font-size: .95rem; }
-  .msg { background: #eef5ee; padding: .6rem .8rem; border-radius: 6px; margin-bottom: .6rem; }
-  .bad-msg { background: #f9eaea; color: #a00; padding: .6rem .8rem; border-radius: 6px; margin-bottom: .6rem; }
-  .err-row { background: #fdf2f2; }
-  .muted { color: #888; font-size: .85rem; }
+<style>""" + BASE_CSS + TABLE_CSS + """
+  .brand { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
+  .links { margin: .4rem 0 0; font-size: .88rem; }
+  .msg { background: rgba(74, 107, 42, .12); border: 1px solid rgba(74, 107, 42, .3);
+    color: var(--good); padding: .6rem .8rem; border-radius: 6px; margin: .7rem 0; }
+  .bad-msg { background: rgba(166, 50, 38, .08); border: 1px solid rgba(166, 50, 38, .3);
+    color: var(--danger); padding: .6rem .8rem; border-radius: 6px; margin: .7rem 0; }
+  input[type=file] { font: inherit; font-size: .9rem; color: var(--ink); }
+  h2 { font-size: 1.02rem; margin: 1.7rem 0 .55rem; }
 </style></head>
 <body>
-<h1>Панель оператора</h1>
-<p class="muted"><a href="/">← витрина</a> · <a href="/admin?logout=1">выйти</a></p>
+<div class="brand">
+  <h1>Панель оператора</h1>
+  <span class="badge">база знаний · логи конвейера</span>
+</div>
+<p class="links"><a href="/">← витрина</a> · <a href="/admin?logout=1">выйти</a></p>
 
 <h2>Пополнение базы</h2>
 {% if ingest_msg %}<div class="msg">{{ ingest_msg }}</div>{% endif %}
 {% if ingest_err %}<div class="bad-msg">{{ ingest_err }}</div>{% endif %}
-<p>Файл <b>.txt</b> или <b>.md</b> (до 2 МБ). Документ будет добавлен в базу
+<div class="card">
+<p style="margin: .2rem 0 .7rem">Файл <b>.txt</b> или <b>.md</b> (до 2 МБ). Документ будет добавлен в базу
 и доступен сразу после индексации; уже загруженные с тем же именем файлы
 не дублируются.</p>
 {% if ingesting %}
@@ -306,15 +401,22 @@ ADMIN_PAGE = """
   <p><button type="submit">Загрузить и индексировать</button></p>
 </form>
 {% endif %}
-<p class="muted">Всего в базе: {{ chunk_count }} чанков.</p>
+<p class="muted" style="margin: .2rem 0 .2rem">Всего в базе: {{ chunk_count }} чанков.</p>
+</div>
 
 <h2>Статистика за 7 дней</h2>
+<div class="tiles">
+  <div class="tile"><div class="n">{{ stats.total_requests }}</div><div class="l">запросов получено</div></div>
+  <div class="tile"><div class="n good">{{ stats.accepted }}</div><div class="l">принято</div></div>
+  <div class="tile"><div class="n">{{ stats.cache_share_pct }}%</div><div class="l">ответов из кеша</div></div>
+  <div class="tile"><div class="n">{{ stats.avg_duration_ms or '—' }}<span style="font-size:.6em{% if stats.avg_duration_ms %}; margin-left:.2em{% endif %}">{% if stats.avg_duration_ms %}мс{% endif %}</span></div><div class="l">средняя длительность</div></div>
+</div>
 <table>
   <tr><th>Показатель</th><th>Значение</th></tr>
   <tr><td>Запросов получено</td><td>{{ stats.total_requests }}</td></tr>
-  <tr><td>Принято</td><td>{{ stats.accepted }}</td></tr>
+  <tr><td>Принято</td><td class="good">{{ stats.accepted }}</td></tr>
   <tr><td>Отклонено</td><td>{{ stats.rejected }}
-      {% for reason, n in stats.rejected_by_reason.items() %} — {{ reason }}: {{ n }}{% endfor %}</td></tr>
+      {% for reason, n in stats.rejected_by_reason.items() %}<span class="reason">{{ reason }}: {{ n }}</span>{% endfor %}</td></tr>
   <tr><td>Запросов по источникам</td><td>
       {% for src, n in stats.by_source.items() %}{{ src }}: {{ n }}{% if not loop.last %}, {% endif %}{% endfor %}</td></tr>
   <tr><td>Ответов подготовлено</td><td>{{ stats.answered }}</td></tr>
@@ -346,30 +448,39 @@ ADMIN_PAGE = """
 </body></html>
 """
 
-STATS_PAGE = """
-<!doctype html>
+STATS_PAGE = """<!doctype html>
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>Статистика</title>
-<style>
-  body { font-family: -apple-system, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
-  table { border-collapse: collapse; width: 100%; margin: .6rem 0 1.2rem; }
-  td, th { border: 1px solid #ddd; padding: .45rem .7rem; text-align: left; }
-  th { background: #f0f0ea; }
-  h2 { font-size: 1.1rem; }
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Статистика логов</title>
+<style>""" + BASE_CSS + TABLE_CSS + """
+  .brand { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
+  h1 { font-size: 1.35rem; }
+  h2 { font-size: 1.02rem; margin: 1.7rem 0 .55rem; }
 </style>
 </head>
 <body>
-<h1>Статистика логов {% if stats.period_start %}(с {{ stats.period_start }} по {{ stats.period_end }}){% else %}(за {{ stats.period_days }} дн.){% endif %}</h1>
+<div class="brand">
+  <h1>Статистика логов</h1>
+  {% if stats.period_start %}<span class="badge">с {{ stats.period_start }} по {{ stats.period_end }}</span>
+  {% else %}<span class="badge">за {{ stats.period_days }} дн.</span>{% endif %}
+</div>
 
-<h2>Конвейер запросов (5 событий)</h2>
+<div class="tiles">
+  <div class="tile"><div class="n">{{ stats.total_requests }}</div><div class="l">запросов получено</div></div>
+  <div class="tile"><div class="n good">{{ stats.accepted }}</div><div class="l">принято</div></div>
+  <div class="tile"><div class="n">{{ stats.cache_share_pct }}%</div><div class="l">ответов из кеша</div></div>
+  <div class="tile"><div class="n">{{ stats.avg_duration_ms or '—' }}<span style="font-size:.6em{% if stats.avg_duration_ms %}; margin-left:.2em{% endif %}">{% if stats.avg_duration_ms %}мс{% endif %}</span></div><div class="l">средняя длительность</div></div>
+</div>
+
+<h2>Конвейер запросов (5 событий урока)</h2>
 <table>
   <tr><th>Показатель</th><th>Значение</th></tr>
   <tr><td>Запросов получено</td><td>{{ stats.total_requests }}</td></tr>
-  <tr><td>Принято</td><td>{{ stats.accepted }}</td></tr>
+  <tr><td>Принято</td><td class="good">{{ stats.accepted }}</td></tr>
   <tr><td>Отклонено</td><td>{{ stats.rejected }}
-      {% for reason, n in stats.rejected_by_reason.items() %} — {{ reason }}: {{ n }}{% endfor %}</td></tr>
+      {% for reason, n in stats.rejected_by_reason.items() %}<span class="reason">{{ reason }}: {{ n }}</span>{% endfor %}</td></tr>
   <tr><td>Запросов по источникам</td><td>
       {% for src, n in stats.by_source.items() %}{{ src }}: {{ n }}{% if not loop.last %}, {% endif %}{% endfor %}</td></tr>
   <tr><td>Ответов подготовлено</td><td>{{ stats.answered }}</td></tr>
@@ -388,7 +499,7 @@ STATS_PAGE = """
   {% endfor %}
 </table>
 
-<p><a href="/">← К ассистенту</a></p>
+<footer><a class="btn" href="/">← К ассистенту</a></footer>
 </body>
 </html>
 """
