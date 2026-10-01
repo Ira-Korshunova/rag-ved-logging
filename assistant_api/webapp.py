@@ -275,10 +275,8 @@ PAGE = """<!doctype html>
   }
   .meta { margin-top: .55rem; font-size: .8rem; color: var(--muted); text-align: right; }
   .errorbox { width: 100%; max-width: 40rem; margin-top: .9rem; color: var(--danger); font-size: .92rem; }
-  footer { position: sticky; bottom: 0; z-index: 10; flex: 0 0 auto; /* футер как верхний бар */
-    background: rgba(239, 231, 218, .55); backdrop-filter: blur(10px);
-    border-top: 1px solid var(--card-line);
-    padding: .45rem 1.2rem; color: var(--muted); font-size: .72rem; text-align: center; }
+  footer { flex: 0 0 auto; padding: .35rem 1.2rem .7rem; /* футер — короткая строка */
+    color: var(--muted); font-size: .72rem; text-align: center; }
   @media (max-width: 640px) { main { padding: 1rem; } }
 </style>
 </head>
