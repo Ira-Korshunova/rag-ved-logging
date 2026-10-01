@@ -16,11 +16,13 @@ import csv
 import io
 import logging
 import os
+import re
 import sys
+from typing import Dict, List
 from datetime import datetime
 
 from dotenv import load_dotenv
-from telegram import InputFile, Update
+from telegram import BotCommand, InputFile, Update
 from telegram.constants import ChatAction
 from telegram.ext import (
     Application, CommandHandler, ContextTypes, MessageHandler, filters,
@@ -53,17 +55,8 @@ USER_HELP_TEXT = (
     "🤖 <b>Ассистент по ВЭД</b>\n\n"
     "Отвечаю по базе документов ЕАЭС и ТК РФ: таможенные процедуры, "
     "Incoterms, ТН ВЭД, формы расчётов, валютный контроль.\n\n"
-    "Просто напишите вопрос — например:\n"
-    "• Чем отличается CIF от FOB?\n"
-    "• Какие документы нужны для импорта?\n"
-    "• Что такое ИМ40?\n\n"
-    "Под каждым ответом — документы, по которым он собран."
-)
-
-ADMIN_EXTRA = (
-    "\n\n<small>— служебное (для оператора) —</small>\n"
-    "/stats — статистика запросов за 7 дней\n"
-    "/ingest — пополнить базу новыми файлами из data/"
+    "Просто напишите вопрос. Под каждым ответом — документы, "
+    "по которым он собран."
 )
 
 
@@ -83,33 +76,17 @@ def is_admin(user_id: str) -> bool:
     return user_id in admins
 
 
-EXAMPLES = [
-    "Чем отличается CIF от FOB?",
-    "Какие документы нужны для импорта?",
-    "Что такое ИМ40?",
-]
-
 # Кнопки-команды (ReplyKeyboard, как у преподавателя в уроке)
-BTN_HELP = "🆘 Помощь"
+BTN_HELP = "Помощь"
 BTN_STATS = "📊 Статистика"
 BTN_LOGS = "📁 Логи"
 _COMMAND_LABELS = {BTN_HELP, BTN_STATS, BTN_LOGS, "Помощь", "Статистика", "Логи"}
 
-ABOUT_TEXT = (
-    "⚙️ <b>Как работает</b>\n"
-    "1. Вопрос превращается в вектор и ищет ближайшие фрагменты базы "
-    "(ChromaDB + эмбеддинги BGE-M3).\n"
-    "2. Найденные фрагменты передаются модели как контекст.\n"
-    "3. Ответ собирается строго по контексту — под ответом источники.\n\n"
-    "🔒 Персональные данные (телефоны, email, номера карт) маскируются "
-    "<i>до</i> записи в лог; логи хранятся "
-    f"{os.getenv('LOG_RETENTION_DAYS', '90')} дней.")
-
-ADMIN_HINT = (
-    "Впиши в ADMIN_USER_IDS (файл .env, через запятую) свой Telegram user_id, "
-    "и служебные команды переключатся на тебя. Узнать свой user_id: "
-    "@userinfobot."
-)
+# Память диалога: последние обмены по каждому чату — для вопросов-
+# продолжений («а про FOB подробнее?»). Держим 3 последних пары;
+# в лог эти данные не попадают (там только маскированный вопрос).
+DIALOG_MEMORY: Dict[int, List[tuple]] = {}
+MAX_DIALOG_TURNS = 3
 
 
 async def ingest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -149,27 +126,25 @@ async def ingest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Приветствие: пользователю — суть и примеры вопросов (кнопками),
-    оператору ещё и служебные кнопки (как у преподавателя)."""
+    """Приветствие: суть ассистента + кнопки (служебные — только оператору)."""
     user_id = str(update.effective_user.id)
+    # /start — новый диалог: память обменов этого чата сбрасываем
+    DIALOG_MEMORY.pop(update.effective_chat.id, None)
     kb = None
     if update.effective_chat.type == "private":
         from telegram import KeyboardButton, ReplyKeyboardMarkup
-        rows = [[KeyboardButton(BTN_HELP), KeyboardButton(BTN_STATS)],
-                [KeyboardButton(BTN_LOGS)],
-                [KeyboardButton(EXAMPLES[0]), KeyboardButton(EXAMPLES[1])],
-                [KeyboardButton(EXAMPLES[2])]] if is_admin(user_id) else [
+        rows = [
+            [KeyboardButton(BTN_HELP), KeyboardButton(BTN_STATS)],
+            [KeyboardButton(BTN_LOGS)],
+        ] if is_admin(user_id) else [
             [KeyboardButton(BTN_HELP)],
-            [KeyboardButton(EXAMPLES[0]), KeyboardButton(EXAMPLES[1])],
-            [KeyboardButton(EXAMPLES[2])]]
+        ]
         kb = ReplyKeyboardMarkup(rows, resize_keyboard=True)
-    extra = ADMIN_EXTRA if is_admin(user_id) else (
-        "\n\n" + ADMIN_HINT if not _admin_ids() else "")
     if kb:
-        await update.message.reply_html(USER_HELP_TEXT + "\n\n" + ABOUT_TEXT + extra,
+        await update.message.reply_html(USER_HELP_TEXT,
                                         reply_markup=kb)
     else:
-        await update.message.reply_html(USER_HELP_TEXT + "\n\n" + ABOUT_TEXT + extra)
+        await update.message.reply_html(USER_HELP_TEXT)
 
 
 async def stats_response(update: Update):
@@ -246,12 +221,54 @@ async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await logs_response(update)
         return
 
+    # Приветствия и болтовня — не вопросы к базе: отвечаем дружелюбно,
+    # конвейер не гоняем и в лог не пишем
+    low = user_message.lower().strip()
+    if len(low) <= 20 and re.search(
+            r"^(привет|здравств|добрый (утро|день|вечер)|hi|hello|ку)",
+            low):
+        await update.message.reply_text(
+            "Привет! Я ассистент по ВЭД — задайте вопрос по базе "
+            "документов ЕАЭС и ТК РФ, например про Incoterms или ТН ВЭД.")
+        return
+
+    # Светская болтовня («как дела?» и т.п.) — не вопрос к базе:
+    # конвейер не нужен, отвечаем по-человечески
+    if len(low) <= 25 and re.search(
+            r"^(как дела|как ты|как жизнь|что нового|что делаешь|чем займ|"
+            r"спасибо|благодар|пока|хорошо|ладно|ок)", low):
+        await update.message.reply_text(
+            "У меня всё хорошо — я готов отвечать по базе знаний ВЭД. "
+            "Спросите, например: какие документы нужны для импорта, "
+            "что такое ИМ40, чем CIF отличается от FOB.")
+        return
+
     pipeline = get_pipeline()
+    # История диалога этого чата: последние пары (вопрос, ответ)
+    chat_id = update.effective_chat.id
+    history = DIALOG_MEMORY.get(chat_id, [])
     await update.message.chat.send_action(action=ChatAction.TYPING)
     try:
-        result = pipeline.query(user_message, user_id=user_id)
-        suffix = "\n\n— по базе знаний ВЭД" + (" · из кеша" if result.get("from_cache") else "")
-        answer = result["answer"] + suffix
+        result = pipeline.query(user_message, user_id=user_id, history=history)
+        # Модель честно признаёт, что в базе ответа нет, — но пользователю
+        # это звучит как техническая простыня; отвечаем по-человечески
+        if result["answer"].lstrip().lower().startswith(
+                "в предоставленном контексте нет информации"):
+            await update.message.reply_text(
+                "Это не по моей части — я отвечаю по базе знаний ВЭД: "
+                "таможенные процедуры, Incoterms, ТН ВЭД, документы, "
+                "валютный контроль. Задайте вопрос из этой темы.")
+            return
+        if result.get("from_cache"):
+            answer = result["answer"] + "\n\n— из кеша"
+        else:
+            # Источники собираются из метаданных найденных документов
+            # (как в веб-витрине); показываются только свежим ответам
+            sources = list(dict.fromkeys(
+                d.get("source") for d in (result.get("context_docs") or [])
+                if isinstance(d, dict) and d.get("source")))
+            tail = "Источники: " + (", ".join(sources) if sources else "нет")
+            answer = result["answer"] + "\n\n" + tail
     except ValueError as e:
         # Отклонение по конвейеру (отклонение уже записано в лог с причиной)
         await update.message.reply_text(
@@ -268,6 +285,13 @@ async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(answer[:4000], disable_web_page_preview=True)
     log.info("Ответ отправлен (source=telegram, user_id=%s)", user_id)
 
+    # Запоминаем обмен в историю диалога (чистый текст, без подписи
+    # источников — она интерфейсная); держим не больше 3 последних
+    turns = DIALOG_MEMORY.setdefault(chat_id, [])
+    turns.append((user_message, result["answer"][:600]))
+    if len(turns) > MAX_DIALOG_TURNS:
+        del turns[:len(turns) - MAX_DIALOG_TURNS]
+
 
 async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE):
     log.error("Ошибка Telegram: %s", context.error)
@@ -281,6 +305,18 @@ async def logs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await logs_response(update)
 
 
+async def post_init(app):
+    """Меню команд (кнопка с ≡ слева от поля ввода) — регистрируется
+    после старта, когда цикл уже крутится и await работает."""
+    await app.bot.set_my_commands([
+        BotCommand("start", "Старт — приветствие и кнопки"),
+        BotCommand("help", "Помощь"),
+        BotCommand("stats", "Статистика запросов"),
+        BotCommand("logs", "Выгрузка логов (CSV)"),
+    ])
+    log.info("Меню команд зарегистрировано")
+
+
 def main():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
@@ -288,7 +324,7 @@ def main():
         sys.exit(1)
 
     log.info("Запуск бота через Long Poll API...")
-    app = Application.builder().token(token).build()
+    app = Application.builder().token(token).post_init(post_init).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("logs", logs_command))

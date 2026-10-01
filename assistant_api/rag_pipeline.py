@@ -86,33 +86,34 @@ class RAGPipeline:
 
         print("RAG Pipeline инициализирован (API mode)")
     
-    def _create_prompt(self, query: str, context_docs: List[Dict[str, Any]]) -> str:
+    def _create_prompt(self, query: str, context_docs: List[Dict[str, Any]],
+                       history: List[tuple] = None) -> str:
         """
-        Создание промпта для LLM с контекстом.
-        
+        Создание промпта для LLM с контекстом и (опционально) историей диалога.
+
         Args:
             query: вопрос пользователя
             context_docs: релевантные документы из векторного хранилища
-            
+            history: последние пары (вопрос, ответ) диалога — для
+                     вопросов-продолжений («а про FOB подробнее?»); None — нет
+
         Returns:
             сформированный промпт
         """
         # Формирование контекста из документов с указанием источника
         context_parts = []
-        sources_used = []
         for i, doc in enumerate(context_docs, 1):
             source = doc.get('source', 'источник неизвестен')
-            sources_used.append(source)
             context_parts.append(f"Документ {i} [источник: {source}]:\n{doc['text']}\n")
 
         context = "\n".join(context_parts)
 
-        # Список уникальных источников для подсказки модели
-        unique_sources = []
-        for s in sources_used:
-            if s not in unique_sources:
-                unique_sources.append(s)
-        sources_line = ", ".join(unique_sources) if unique_sources else "нет"
+        # История диалога: последние несколько обменов пользователя с ботом
+        dialog_line = ""
+        if history:
+            turns = "\n".join(
+                f"Пользователь: {q}\nАссистент: {a}" for q, a in history)
+            dialog_line = f"Предыдущий диалог:\n{turns}\n\n"
 
         # Создание промпта
         prompt = f"""Ты - полезный AI ассистент по внешнеэкономической деятельности (ВЭД). Ответь на вопрос пользователя на основе предоставленного контекста.
@@ -120,12 +121,10 @@ class RAGPipeline:
 Контекст:
 {context}
 
-Вопрос: {query}
+{dialog_line}Вопрос: {query}
 
 Инструкции:
 - Отвечай только на основе предоставленного контекста
-- В конце ответа укажи, из каких документов взята информация, в квадратных скобках, например: [источник: incoterms_2020.txt, ved_payments.txt]
-- Доступные источники в контексте: {sources_line}
 - Если в контексте нет информации для ответа, так и скажи и не придумывай
 - Будь точным и кратким
 - Отвечай на русском языке
@@ -163,7 +162,7 @@ class RAGPipeline:
         return answer, tokens
     
     def query(self, user_query: str, use_cache: bool = True,
-              user_id: str = None) -> Dict[str, Any]:
+              user_id: str = None, history: List[tuple] = None) -> Dict[str, Any]:
         """
         Основной метод для обработки запроса пользователя через API.
 
@@ -245,7 +244,7 @@ class RAGPipeline:
 
             # Шаг 3: Формирование промпта
             print("[*] Формирование промпта...")
-            prompt = self._create_prompt(user_query, context_docs)
+            prompt = self._create_prompt(user_query, context_docs, history)
 
             # Шаг 4: Генерация ответа через API
             print(f"[*] Генерация ответа через LLM ({self.model})...")

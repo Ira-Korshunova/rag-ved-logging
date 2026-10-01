@@ -27,3 +27,4 @@ venv/
 # готовый стартовый индекс кладём В репозиторий (деплой через git clone)
 # chroma_db_local/
 chroma_db_v3_backup/
+chroma_db_qwen_backup/
