@@ -214,7 +214,7 @@ PAGE = """<!doctype html>
   /* витрина в паттерне Perplexity: шапка, форма по центру, ответ под ней */
   html, body { height: 100%; }
   body {
-    max-width: none; margin: 0; padding: 0;
+    max-width: none; margin: 0; padding: 0; overflow: hidden; /* рамка приложения: скролл только внутри main */
     display: flex; flex-direction: column;
     background: #EFE7DA;
   }
@@ -239,6 +239,7 @@ PAGE = """<!doctype html>
   main {
     width: 100%; max-width: 62rem; margin: 0 auto; padding: 3rem 1.2rem 1.2rem; /* окно вопроса опущено ниже */
     display: flex; flex-direction: column; align-items: center;
+    flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; /* прокрутка внутри: бары и футер всегда на виду */
   }
   .ask {
     width: 100%; max-width: 40rem;
