@@ -237,9 +237,13 @@ PAGE = """<!doctype html>
   .bar-in a + a { margin-left: 2rem; }  /* ссылки в шапке не слипаются */
   .bar-in a:hover, .backlink:hover { text-decoration: underline; text-underline-offset: 3px; }
   main {
-    width: 100%; max-width: 62rem; margin: 0 auto; padding: 3rem 1.2rem 1.2rem; /* окно вопроса опущено ниже */
+    width: 100%; max-width: 62rem; margin: 0 auto; padding: 3rem 1.2rem 1.2rem; /* окно вопроса опущено ниже; вопрос закреплён */
     display: flex; flex-direction: column; align-items: center;
-    flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; /* прокрутка внутри: бары и футер всегда на виду */
+    flex: 1 1 auto; min-height: 0;
+  }
+  .scroller { /* прокрутка только в зоне ответа: бары, футер и вопрос всегда на виду */
+    width: 100%; max-width: 40rem; margin: 0 auto;
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
   }
   .ask {
     width: 100%; max-width: 40rem;
@@ -308,13 +312,15 @@ PAGE = """<!doctype html>
       </button>
     </div>
   </form>
-  <div id="wait" hidden><span class="dot"></span>Ищу ответ в базе — обычно 20–60 секунд</div>
-  <div id="errbox" class="errorbox" hidden></div>
+  <div class="scroller">
+    <div id="wait" hidden><span class="dot"></span>Ищу ответ в базе — обычно 20–60 секунд</div>
+    <div id="errbox" class="errorbox" hidden></div>
 
-  <div class="answer-zone">
-    <div id="answer">
-      <div class="answer" id="answertext"></div>
-      <div class="meta" id="sourceschip"></div>
+    <div class="answer-zone">
+      <div id="answer">
+        <div class="answer" id="answertext"></div>
+        <div class="meta" id="sourceschip"></div>
+      </div>
     </div>
   </div>
 </main>
@@ -434,10 +440,11 @@ LOGIN_PAGE = """<!doctype html>
 <title>Панель оператора — вход</title>
 <style>""" + BASE_CSS + """
   .wrap { max-width: 22rem; margin: 8vh auto 0; }
+  h1 { font-size: 1.25rem; }  /* заголовок входа скромнее витринного */
   input[type=password] {
     width: 100%; font: inherit; padding: .6rem .8rem; margin-top: .7rem;
     border: 1px solid var(--brown-soft); border-radius: 0; /* прямоугольное, как поле на /stats */
-    background: rgba(255,255,255,.75); color: var(--ink);
+    background: transparent; color: var(--ink); /* без подвыделенного окошка */
   }
   input[type=password]:focus { outline: 2px solid var(--brown); outline-offset: 1px; }
   .action-row { display: flex; align-items: center; justify-content: space-between; margin-top: .9rem; }
