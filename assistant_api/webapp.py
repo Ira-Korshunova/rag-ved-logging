@@ -233,7 +233,7 @@ PAGE = """<!doctype html>
     text-decoration: none; font-weight: 600; font-size: .8rem; color: var(--brown);
     border: 1px solid rgba(119, 87, 58, .12); border-radius: 3px;
     background: transparent; padding: .2rem .6rem;
-    width: 6rem; text-align: center; box-sizing: border-box; flex: 0 0 auto;
+    white-space: nowrap; flex: 0 0 auto;  /* кнопка в шапке всегда в одну строку */
   }
   .bar-in a:hover { border-color: rgba(119, 87, 58, .25); }
   main {
@@ -349,6 +349,7 @@ form.addEventListener('submit', function (e) {
     if (d.from_cache) s += ' · из кеша';
     srcEl.textContent = s;
     zone.style.display = 'block';
+    document.getElementById('qbox').value = '';  // вопрос ушёл в ответ — поле готово к следующему запросу
     btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }).catch(function () {
     wait.hidden = true; btn.disabled = false; btn.innerHTML = ICON;
@@ -473,7 +474,7 @@ ADMIN_PAGE = """<!doctype html>
     text-decoration: none; font-weight: 600; font-size: .8rem; color: var(--brown);
     border: 1px solid rgba(119, 87, 58, .12); border-radius: 3px;
     background: transparent; padding: .2rem .6rem;
-    width: 6rem; text-align: center; box-sizing: border-box; flex: 0 0 auto;
+    white-space: nowrap; flex: 0 0 auto;  /* кнопка в шапке всегда в одну строку */
   }
   .bar-in a:hover { border-color: rgba(119, 87, 58, .25); }
   .bstats { font-size: .78rem; color: var(--muted); }
