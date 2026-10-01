@@ -285,6 +285,7 @@ PAGE = """<!doctype html>
   <div class="bar-in">
     <h1>ИИ-ассистент для ВЭД</h1>
     <a href="/about">как работает</a>
+    <a href="/admin">Панель оператора</a>
   </div>
 </div>
 
