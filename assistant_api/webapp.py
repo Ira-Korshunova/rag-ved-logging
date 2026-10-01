@@ -276,10 +276,12 @@ PAGE = """<!doctype html>
   }
   .meta { margin-top: .55rem; font-size: .8rem; color: var(--muted); text-align: right; }
   .errorbox { width: 100%; max-width: 40rem; margin-top: .9rem; color: var(--danger); font-size: .92rem; }
-  footer { height: 3rem; line-height: 3rem; box-sizing: border-box; margin-top: auto; /* прижат к низу окна, пустота — над ним */
+  footer { height: 3rem; box-sizing: border-box; margin-top: auto; display: flex;
+    align-items: center; justify-content: space-between; /* копирайт слева, дисклеймер справа */
     background: rgba(239, 231, 218, .55); backdrop-filter: blur(10px);
     border-top: 1px solid var(--card-line); overflow: hidden;
-    padding: 0 1.2rem; color: var(--muted); font-size: .8rem; text-align: center; }
+    padding: 0 1.2rem; color: var(--muted); font-size: .8rem; }
+  footer .r { text-align: right; }
   @media (max-width: 640px) { main { padding: 1rem; } }
 </style>
 </head>
@@ -316,7 +318,7 @@ PAGE = """<!doctype html>
   </div>
 </main>
 
-<footer>© Коршунова И., 2026 · Точность норм проверяйте по актуальной редакции НПА</footer>
+<footer><span>© Коршунова И., 2026</span><span class="r">Точность норм проверяйте по актуальной редакции НПА</span></footer>
 
 <script>
 // запрос к /ask без перезагрузки страницы; на время генерации — искра крутится
