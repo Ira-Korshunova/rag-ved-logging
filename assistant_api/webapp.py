@@ -434,7 +434,7 @@ LOGIN_PAGE = """<!doctype html>
     background: rgba(255,255,255,.75); color: var(--ink);
   }
   input[type=password]:focus { outline: 2px solid var(--brown); outline-offset: 1px; }
-  .action-row { display: flex; align-items: center; gap: .9rem; margin-top: .9rem; }
+  .action-row { display: flex; align-items: center; justify-content: space-between; margin-top: .9rem; }
   .action-row button, .action-row a {
     font: inherit; font-weight: 500; cursor: pointer; border: 0; border-radius: 3px;
     background: transparent; color: var(--brown); padding: .3rem .55rem; text-decoration: none;
@@ -448,8 +448,7 @@ LOGIN_PAGE = """<!doctype html>
 <div class="card">
 <h1>Панель оператора</h1>
 {% if no_password %}<p class="muted">Панель отключена: не задан STATS_PASSWORD на сервере.</p>
-{% else %}{% if wrong %}<p style="color: var(--danger)">Неверный пароль.</p>{% endif %}
-<form method="post" action="/admin">
+{% else %}<form method="post" action="/admin">
   <input type="password" name="password" placeholder="Пароль" required autofocus>
   <div class="action-row">
     <button type="submit">Войти</button>
