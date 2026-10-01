@@ -458,17 +458,15 @@ LOGIN_PAGE = """<!doctype html>
 </style></head>
 <body>
 <div class="wrap">
-<div class="card">
-<h1>Панель оператора</h1>
-{% if no_password %}<p class="muted">Панель отключена: не задан STATS_PASSWORD на сервере.</p>
-{% else %}<form method="post" action="/admin">
+<h1 style="margin-bottom: .6rem">Панель оператора</h1>
+{% if no_password %}<div class="card"><p class="muted">Панель отключена: не задан STATS_PASSWORD на сервере.</p></div>
+{% else %}<form method="post" action="/admin" class="card">
   <input type="password" name="password" placeholder="Пароль" required autofocus>
   <div class="action-row">
     <button type="submit">Войти</button>
     <a href="/">К ассистенту</a>
   </div>
 </form>{% endif %}
-</div>
 </div>
 </body></html>
 """
