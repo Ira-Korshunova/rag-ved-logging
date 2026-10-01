@@ -275,7 +275,7 @@ PAGE = """<!doctype html>
   }
   .meta { margin-top: .55rem; font-size: .8rem; color: var(--muted); text-align: right; }
   .errorbox { width: 100%; max-width: 40rem; margin-top: .9rem; color: var(--danger); font-size: .92rem; }
-  footer { flex: 0 0 auto; padding: .35rem 1.2rem .7rem; /* футер — короткая строка */
+  footer { padding: .35rem 1.2rem .7rem; /* футер сразу за контентом, без растяжек */
     color: var(--muted); font-size: .72rem; text-align: center; }
   @media (max-width: 640px) { main { padding: 1rem; } }
 </style>
