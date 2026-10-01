@@ -277,7 +277,7 @@ PAGE = """<!doctype html>
   .errorbox { width: 100%; max-width: 40rem; margin-top: .9rem; color: var(--danger); font-size: .92rem; }
   footer { background: rgba(239, 231, 218, .55); backdrop-filter: blur(10px); /* полоса, как верхний бар, но не липнет */
     border-top: 1px solid var(--card-line);
-    padding: .5rem 1.2rem; color: var(--muted); font-size: .72rem; text-align: center; }
+    padding: .8rem 1.2rem; color: var(--muted); font-size: .8rem; text-align: center; }
   @media (max-width: 640px) { main { padding: 1rem; } }
 </style>
 </head>
