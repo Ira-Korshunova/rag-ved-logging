@@ -439,7 +439,7 @@ LOGIN_PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Панель оператора — вход</title>
 <style>""" + BASE_CSS + """
-  .wrap { max-width: 22rem; margin: 8vh auto 0; }
+  .wrap { max-width: 22rem; margin: 18vh auto 0; } /* блок опущен ниже — не липнет к верху */
   h1 { font-size: 1.25rem; }  /* заголовок входа скромнее витринного */
   input[type=password] {
     width: 100%; font: inherit; padding: .6rem .8rem; margin-top: .7rem;
