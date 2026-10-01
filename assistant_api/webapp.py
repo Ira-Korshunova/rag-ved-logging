@@ -275,8 +275,8 @@ PAGE = """<!doctype html>
   }
   .meta { margin-top: .55rem; font-size: .8rem; color: var(--muted); text-align: right; }
   .errorbox { width: 100%; max-width: 40rem; margin-top: .9rem; color: var(--danger); font-size: .92rem; }
-  footer { max-width: 62rem; margin: auto auto 0; padding: .6rem 1.2rem 1.4rem;
-    color: var(--muted); font-size: .78rem; text-align: center; }
+  footer { max-width: 62rem; margin: auto auto 0; padding: .45rem 1.2rem .85rem; /* футер компактнее */
+    color: var(--muted); font-size: .72rem; text-align: center; }
   @media (max-width: 640px) { main { padding: 1rem; } }
 </style>
 </head>
