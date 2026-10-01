@@ -318,7 +318,7 @@ PAGE = """<!doctype html>
   </div>
 </main>
 
-<footer><span>© Коршунова И., 2026</span><span class="r">Точность норм проверяйте по актуальной редакции НПА</span></footer>
+<footer><span>© 2026 Irina Korshunova</span><span class="r">Точность норм проверяйте по актуальной редакции НПА</span></footer>
 
 <script>
 // запрос к /ask без перезагрузки страницы; на время генерации — искра крутится
