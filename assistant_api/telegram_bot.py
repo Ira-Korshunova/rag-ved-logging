@@ -147,16 +147,18 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_html(USER_HELP_TEXT)
 
 
-async def stats_response(update: Update):
-    """Статистика из логов — только оператору (кнопка /статистика или /stats)."""
+async def stats_response(update: Update, period_days: int = 7):
+    """Статистика из логов — только оператору (кнопка /статистика или /stats).
+    /stats 24 (30) — за соответствующее число дней; /stats 0 — за 24 часа."""
     if not is_admin(str(update.effective_user.id)):
         await update.message.reply_text(
             "Статистика запросов доступна только оператору ассистента.")
         return
     pipeline = get_pipeline()
-    stats = pipeline.logger.get_stats(period_days=7)
+    stats = pipeline.logger.get_stats(period_days=period_days)
+    label = "24 часа" if period_days == 1 else f"{period_days} дн."
     lines = [
-        "<b>📊 Статистика за 7 дней</b>",
+        f"<b>📊 Статистика за {label}</b>",
         f"Запросов: {stats['total_requests']}",
         f"Принято: {stats['accepted']}, отклонено: {stats['rejected']}",
         f"⚙️ Модель ответа: <b>{os.getenv('MODEL_NAME', '—')}</b>",
@@ -298,7 +300,15 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await stats_response(update)
+    """Статистика: /stats — за 7 дней, /stats 1 — за 24 часа, /stats 30 — за 30 дней."""
+    arg = (context.args or [""])[0]
+    if arg in ("1", "24"):
+        period = 1
+    elif arg == "30":
+        period = 30
+    else:
+        period = 7
+    await stats_response(update, period_days=period)
 
 
 async def logs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
