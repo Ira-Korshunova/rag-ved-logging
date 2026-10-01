@@ -312,7 +312,7 @@ PAGE = """<!doctype html>
       </button>
     </div>
   </form>
-  <div class="scroller">
+  <div class="scroller" id="scroller">
     <div id="wait" hidden><span class="dot"></span>Ищу ответ в базе — обычно 20–60 секунд</div>
     <div id="errbox" class="errorbox" hidden></div>
 
@@ -335,7 +335,8 @@ var form = document.getElementById('askform'),
     errbox = document.getElementById('errbox'),
     zone = document.getElementById('answer'),
     textEl = document.getElementById('answertext'),
-    srcEl = document.getElementById('sourceschip');
+    srcEl = document.getElementById('sourceschip'),
+    scr = document.getElementById('scroller');
 var ICON = btn.innerHTML;
 var SPIN = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
   'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block" aria-hidden="true">' +
@@ -362,7 +363,7 @@ form.addEventListener('submit', function (e) {
     srcEl.textContent = s;
     zone.style.display = 'block';
     document.getElementById('qbox').value = '';  // вопрос ушёл в ответ — поле готово к следующему запросу
-    btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    scr.scrollTop = 0;  // ответ пришёл — зона ответа отматывается в начало, без smooth-scroll, который подвешивал прокрутку
   }).catch(function () {
     wait.hidden = true; btn.disabled = false; btn.innerHTML = ICON;
     errbox.textContent = 'Сеть недоступна — попробуйте ещё раз позже.';
