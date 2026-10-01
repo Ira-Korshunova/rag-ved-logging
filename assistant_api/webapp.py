@@ -275,8 +275,9 @@ PAGE = """<!doctype html>
   }
   .meta { margin-top: .55rem; font-size: .8rem; color: var(--muted); text-align: right; }
   .errorbox { width: 100%; max-width: 40rem; margin-top: .9rem; color: var(--danger); font-size: .92rem; }
-  footer { padding: .35rem 1.2rem .7rem; /* футер сразу за контентом, без растяжек */
-    color: var(--muted); font-size: .72rem; text-align: center; }
+  footer { background: rgba(239, 231, 218, .55); backdrop-filter: blur(10px); /* полоса, как верхний бар, но не липнет */
+    border-top: 1px solid var(--card-line);
+    padding: .5rem 1.2rem; color: var(--muted); font-size: .72rem; text-align: center; }
   @media (max-width: 640px) { main { padding: 1rem; } }
 </style>
 </head>
