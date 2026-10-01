@@ -458,7 +458,7 @@ LOGIN_PAGE = """<!doctype html>
 </style></head>
 <body>
 <div class="wrap">
-<h1 style="margin-bottom: .6rem">Панель оператора</h1>
+<h1 style="margin-bottom: .6rem; text-align: center">Панель оператора</h1>
 {% if no_password %}<div class="card"><p class="muted">Панель отключена: не задан STATS_PASSWORD на сервере.</p></div>
 {% else %}<form method="post" action="/admin" class="card">
   <input type="password" name="password" placeholder="Пароль" required autofocus>
