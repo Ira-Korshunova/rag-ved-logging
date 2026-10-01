@@ -143,7 +143,7 @@ BASE_CSS = """
   body::before {
     content: ""; position: fixed; inset: 0; z-index: -1;
     background: url("/static/porta-map-warm-v3.png") center / cover no-repeat;
-    opacity: .12; filter: saturate(80%) contrast(1.05); /* карта едва заметна — страница бледная, как в макете */
+    opacity: .34; filter: saturate(95%) contrast(1.05); /* как на панели оператора: светлая карта поверх белого */
   }
   h1 { font-size: 1.5rem; margin: 0; letter-spacing: -.01em; }
   h2 { font-size: 1.05rem; margin: 1.6rem 0 .5rem; }
@@ -216,7 +216,7 @@ PAGE = """<!doctype html>
   body {
     max-width: none; margin: 0; padding: 0; overflow: hidden; /* рамка приложения: скролл только внутри main */
     display: flex; flex-direction: column;
-    background: #EFE7DA;
+    background: transparent; /* фон как на панели оператора: белый + светлая карта */
   }
   .bar {
     position: sticky; top: 0; z-index: 10; flex: 0 0 auto;
@@ -441,7 +441,6 @@ LOGIN_PAGE = """<!doctype html>
 <title>Панель оператора — вход</title>
 <style>""" + BASE_CSS + """
   .wrap { max-width: 22rem; margin: 18vh auto 0; } /* блок опущен ниже — не липнет к верху */
-  body::before { opacity: .34; filter: saturate(95%) contrast(1.05); } /* вход — как в утверждённом макете, общий BASE_CSS не трогаем */
   h1 { font-size: 1.25rem; }  /* заголовок входа скромнее витринного */
   input[type=password] {
     width: 100%; font: inherit; padding: .6rem .8rem; margin-top: .7rem;
