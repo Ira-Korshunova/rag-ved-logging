@@ -56,7 +56,7 @@ exit
 
 ```bash
 ssh irina@72.56.94.48 'set -e
-# 1. сид локального векторного индекса (BGE-M3) в том + папка документов в тое
+# 1. сид локального векторного индекса (e5-small) в том + папка документов в томе
 sudo mkdir -p /opt/rag-ved/state
 sudo rm -rf /opt/rag-ved/state/chroma_db
 sudo cp -r /opt/rag-ved/assistant_api/chroma_db_local /opt/rag-ved/state/chroma_db
@@ -97,10 +97,12 @@ sudo docker logs rag-ved --tail 20
 sudo docker logs rag-ved-bot --tail 20   # бот: должно быть «Бот ждёт сообщения»
 ```
 
-> Первый запрос будет медленным: при старте локальный режим один раз скачает
-> модель `BAAI/bge-m3` (~2 ГБ) с Hugging Face — её кеш лежит в томе
+> При старте локальный режим один раз скачает модель
+> `intfloat/multilingual-e5-small` (~0,5 ГБ) с Hugging Face — её кеш лежит в томе
 > (`HF_HOME=/app/state/hf-cache`), поэтому переживает пересоздание контейнера.
-> Дальше работает без сети. Если контейнер падает с OOM — добавить swap.
+> Выбор модели: бенчмарк evals/retrieval_benchmark.py показал качество как у
+> BGE-M3 (hit@5 92%) при RAM ~0,5 ГБ против ~2,3 ГБ — BGE-M3 на сервере с 2 ГБ
+> не помещается. Дальше работает без сети. Если контейнер падает с OOM — добавить swap.
 
 ## Шаг 4 (проверка ДЗ-сценария)
 

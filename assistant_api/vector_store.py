@@ -57,6 +57,11 @@ class VectorStore:
             self.openai_client = None
             self._local_st_model = None
             self.embedding_model = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
+            # Префиксы для моделей, разделяющих запросы и документы
+            # (например, e5: query: / passage:). Для НЕтребовательных моделей
+            # (BGE-M3, MiniLM) остаются пустыми — поведение не меняется.
+            self.query_prefix = os.getenv("EMBEDDING_QUERY_PREFIX", "")
+            self.doc_prefix = os.getenv("EMBEDDING_DOCUMENT_PREFIX", "")
         else:
             # OpenAI-совместимый клиент для создания embeddings.
             # Работает как с OpenAI, так и с любым совместимым API (DashScope/Qwen и т.п.)
@@ -421,7 +426,7 @@ class VectorStore:
         return {"added_files": len(new_files), "added_chunks": chunk_counter,
                 "total": self.collection.count()}
 
-    def _create_embedding(self, text: str) -> List[float]:
+    def _create_embedding(self, text: str, is_query: bool = False) -> List[float]:
         """
         Создание векторного представления текста.
 
@@ -431,6 +436,10 @@ class VectorStore:
 
         Args:
             text: текст для векторизации
+            is_query: True для запросов пользователя (добавляется
+                EMBEDDING_QUERY_PREFIX), False для индексируемых документов
+                (EMBEDDING_DOCUMENT_PREFIX). Префиксы активны только в
+                локальном режиме и нужны лишь моделям семейства e5.
 
         Returns:
             вектор embeddings
@@ -440,6 +449,7 @@ class VectorStore:
                 from sentence_transformers import SentenceTransformer
                 print(f"Загрузка локальной модели эмбеддингов {self.embedding_model}...")
                 self._local_st_model = SentenceTransformer(self.embedding_model)
+            text = (self.query_prefix if is_query else self.doc_prefix) + text
             return self._local_st_model.encode(text, normalize_embeddings=True).tolist()
         response = self.openai_client.embeddings.create(
             input=text,
@@ -459,7 +469,7 @@ class VectorStore:
             список документов с метаданными
         """
         # Создание embedding для запроса
-        query_embedding = self._create_embedding(query)
+        query_embedding = self._create_embedding(query, is_query=True)
         
         # Поиск в ChromaDB
         results = self.collection.query(
