@@ -229,12 +229,12 @@ PAGE = """<!doctype html>
   }
   .bar h1 { font-size: 1.1rem; margin: 0; letter-spacing: -.01em; margin-right: auto; }
   a { color: var(--brown); text-underline-offset: 3px; }
-  .bar-in a {
+  .bar-in a, .backlink {
     text-decoration: none; font-weight: 600; font-size: .8rem; color: var(--brown);
     background: transparent; padding: .2rem .2rem;
     white-space: nowrap; flex: 0 0 auto;  /* кнопка в шапке всегда в одну строку */
   }
-  .bar-in a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .bar-in a:hover, .backlink:hover { text-decoration: underline; text-underline-offset: 3px; }
   main {
     width: 100%; max-width: 62rem; margin: 0 auto; padding: 1.6rem 1.2rem 1.2rem;
     display: flex; flex-direction: column; align-items: center;
@@ -416,7 +416,7 @@ ABOUT_PAGE = """<!doctype html>
 </ul>
 </div>
 
-<p><a href="/">К ассистенту</a></p>
+<p><a class="backlink" href="/">К ассистенту</a></p>
 </body>
 </html>
 """
@@ -446,7 +446,7 @@ LOGIN_PAGE = """<!doctype html>
   <input type="password" name="password" placeholder="Пароль" required autofocus>
   <button type="submit">Войти</button>
 </form>{% endif %}
-<p style="margin-top: 1.2rem"><a href="/">К ассистенту</a></p>
+<p style="margin-top: 1.2rem"><a class="backlink" href="/">К ассистенту</a></p>
 </div>
 </div>
 </body></html>
@@ -469,12 +469,12 @@ ADMIN_PAGE = """<!doctype html>
     display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap;
   }
   .bar h1 { font-size: 1.1rem; margin: 0; letter-spacing: -.01em; margin-right: auto; }
-  .bar-in a {
+  .bar-in a, .backlink {
     text-decoration: none; font-weight: 600; font-size: .8rem; color: var(--brown);
     background: transparent; padding: .2rem .2rem;
     white-space: nowrap; flex: 0 0 auto;  /* кнопка в шапке всегда в одну строку */
   }
-  .bar-in a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .bar-in a:hover, .backlink:hover { text-decoration: underline; text-underline-offset: 3px; }
   .bstats { font-size: .78rem; color: var(--muted); }
   .bstats b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
   .bar-in .bstats { margin-right: 2rem; }
@@ -705,7 +705,7 @@ STATS_PAGE = """<!doctype html>
   {% endfor %}
 </table></div>
 
-<footer><a class="btn" href="/">К ассистенту</a></footer>
+<footer><a class="backlink" href="/">К ассистенту</a></footer>
 </body>
 </html>
 """
