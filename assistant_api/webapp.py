@@ -234,6 +234,7 @@ PAGE = """<!doctype html>
     background: transparent; padding: .2rem .2rem;
     white-space: nowrap; flex: 0 0 auto;  /* кнопка в шапке всегда в одну строку */
   }
+  .bar-in a + a { margin-left: 1.1rem; }  /* ссылки в шапке не слипаются */
   .bar-in a:hover, .backlink:hover { text-decoration: underline; text-underline-offset: 3px; }
   main {
     width: 100%; max-width: 62rem; margin: 0 auto; padding: 3rem 1.2rem 1.2rem; /* окно вопроса опущено ниже */
@@ -484,6 +485,7 @@ ADMIN_PAGE = """<!doctype html>
     background: transparent; padding: .2rem .2rem;
     white-space: nowrap; flex: 0 0 auto;  /* кнопка в шапке всегда в одну строку */
   }
+  .bar-in a + a { margin-left: 1.1rem; }  /* ссылки в шапке не слипаются */
   .bar-in a:hover, .backlink:hover { text-decoration: underline; text-underline-offset: 3px; }
   .bstats { font-size: .78rem; color: var(--muted); }
   .bstats b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
