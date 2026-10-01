@@ -275,9 +275,10 @@ PAGE = """<!doctype html>
   }
   .meta { margin-top: .55rem; font-size: .8rem; color: var(--muted); text-align: right; }
   .errorbox { width: 100%; max-width: 40rem; margin-top: .9rem; color: var(--danger); font-size: .92rem; }
-  footer { background: rgba(239, 231, 218, .55); backdrop-filter: blur(10px); /* полоса, как верхний бар, но не липнет */
-    border-top: 1px solid var(--card-line);
-    padding: .8rem 1.2rem; color: var(--muted); font-size: .8rem; text-align: center; }
+  footer { height: 3rem; line-height: 3rem; box-sizing: border-box; /* ровно высота верхнего бара */
+    background: rgba(239, 231, 218, .55); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--card-line); overflow: hidden;
+    padding: 0 1.2rem; color: var(--muted); font-size: .8rem; text-align: center; }
   @media (max-width: 640px) { main { padding: 1rem; } }
 </style>
 </head>
