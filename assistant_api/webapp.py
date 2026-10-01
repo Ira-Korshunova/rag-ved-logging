@@ -236,7 +236,7 @@ PAGE = """<!doctype html>
   }
   .bar-in a:hover, .backlink:hover { text-decoration: underline; text-underline-offset: 3px; }
   main {
-    width: 100%; max-width: 62rem; margin: 0 auto; padding: 1.6rem 1.2rem 1.2rem;
+    width: 100%; max-width: 62rem; margin: 0 auto; padding: 3rem 1.2rem 1.2rem; /* окно вопроса опущено ниже */
     display: flex; flex-direction: column; align-items: center;
   }
   .ask {
