@@ -53,6 +53,10 @@ class RAGPipeline:
         base_url = os.getenv("LLM_BASE_URL") or os.getenv("OPENAI_BASE_URL")
         if base_url:
             client_kwargs["base_url"] = base_url
+        # Жёсткий таймаут LLM: при сбое провайдера запрос не висит до казни воркера,
+        # а быстро возвращает ошибку (см. webapp: «Модель временно недоступна»).
+        client_kwargs["timeout"] = float(os.getenv("LLM_TIMEOUT", "60"))
+        client_kwargs["max_retries"] = int(os.getenv("LLM_MAX_RETRIES", "1"))
         self.openai_client = OpenAI(**client_kwargs)
 
         # Инициализация компонентов

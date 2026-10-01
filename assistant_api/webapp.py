@@ -767,7 +767,13 @@ def ask():
     except ValueError as ve:
         # Отклонение с причиной — уже залогировано в pipeline
         return jsonify_wrap({"error": _friendly_reject(ve)}, 400)
-    except Exception:
+    except Exception as e:
+        # LLM-провайдер недоступен/таймаут — говорим честно, вместо долгого молчания
+        etype = type(e).__name__
+        if "Timeout" in etype or "Connection" in etype or "APIError" in etype:
+            return jsonify_wrap(
+                {"error": "Модель генерации временно недоступна — попробуйте через несколько минут."},
+                503)
         return jsonify_wrap({"error": "Не получилось получить ответ по базе — попробуйте другой вопрос."}, 500)
 
     from_cache = result.get("from_cache", False)
