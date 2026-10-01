@@ -284,7 +284,7 @@ PAGE = """<!doctype html>
 <div class="bar">
   <div class="bar-in">
     <h1>ИИ-ассистент для ВЭД</h1>
-    <a href="/about">как работает</a>
+    <a href="/about">Как работает</a>
     <a href="/admin">Панель оператора</a>
   </div>
 </div>
@@ -430,24 +430,32 @@ LOGIN_PAGE = """<!doctype html>
   .wrap { max-width: 22rem; margin: 8vh auto 0; }
   input[type=password] {
     width: 100%; font: inherit; padding: .6rem .8rem; margin-top: .7rem;
-    border: 1px solid var(--brown-soft); border-radius: 6px;
+    border: 1px solid var(--brown-soft); border-radius: 0; /* прямоугольное, как поле на /stats */
     background: rgba(255,255,255,.75); color: var(--ink);
   }
   input[type=password]:focus { outline: 2px solid var(--brown); outline-offset: 1px; }
-  button { margin-top: .9rem; width: 100%; }
+  .action-row { display: flex; align-items: center; gap: .9rem; margin-top: .9rem; }
+  .action-row button, .action-row a {
+    font: inherit; font-weight: 500; cursor: pointer; border: 0; border-radius: 3px;
+    background: transparent; color: var(--brown); padding: .3rem .55rem; text-decoration: none;
+  }
+  .action-row button:hover, .action-row a:hover {
+    text-decoration: underline; text-underline-offset: 3px;
+  }
 </style></head>
 <body>
 <div class="wrap">
 <div class="card">
 <h1>Панель оператора</h1>
 {% if no_password %}<p class="muted">Панель отключена: не задан STATS_PASSWORD на сервере.</p>
-{% else %}<p class="muted" style="font-size: .9rem">Вход по паролю (переменная STATS_PASSWORD на сервере).
-{% if wrong %}<span style="color: var(--danger)">Неверный пароль.</span>{% endif %}</p>
+{% else %}{% if wrong %}<p style="color: var(--danger)">Неверный пароль.</p>{% endif %}
 <form method="post" action="/admin">
   <input type="password" name="password" placeholder="Пароль" required autofocus>
-  <button type="submit">Войти</button>
+  <div class="action-row">
+    <button type="submit">Войти</button>
+    <a href="/">К ассистенту</a>
+  </div>
 </form>{% endif %}
-<p style="margin-top: 1.2rem"><a class="backlink" href="/">К ассистенту</a></p>
 </div>
 </div>
 </body></html>
