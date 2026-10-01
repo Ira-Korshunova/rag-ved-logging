@@ -1,0 +1,13 @@
+# Продуктовые зависимости для Docker-образа на сервере.
+# Замысел: requirements.txt (полный, с ragas/datasets/langchain) остаётся
+# для локальной разработки и Ragas-оценки; на сервере они не используются
+# и тянут тяжёлые пакеты (pyarrow и пр.) — на VPS с малым диском сборка
+# на полном наборе не влезала ("no space left on device").
+openai>=1.3.0
+chromadb>=0.4.18
+sentence-transformers>=2.2.0
+python-dotenv>=1.0.0
+flask>=3.0.0
+gunicorn>=21.0.0
+# Телеграм-бот поверх того же движка (как в уроке PEcf09)
+python-telegram-bot~=21.6
