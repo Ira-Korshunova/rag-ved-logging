@@ -324,9 +324,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 INGEST_PROMPT_TEXT = (
     "Отправьте файлом .txt или .md (до 2 МБ) в этот чат — я сохраню его "
-    "в базу знаний и проиндексирую.\n\n"
-    "Команда /ingest — проиндексировать заново папку data/ на сервере "
-    "(файлы из неё добавляются без дублей)."
+    "в базу знаний и проиндексирую."
 )
 
 
@@ -374,20 +372,24 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"старый через панель /admin на сайте.")
         return
 
-    await update.message.chat.send_action(action=ChatAction.TYPING)
+    # Фидбек сразу: статус-сообщение, которое по готовности превращается
+    # в итог (иначе индексация выглядит как молчание бота на до минуты)
+    status = await update.message.reply_text(
+        f"⏳ Индексирую «{name}» — сейчас это займёт до минуты…")
     try:
         tg_file = await doc.get_file()
         await tg_file.download_to_drive(custom_path=target)
         result = get_pipeline().vector_store.add_documents_from_folder(data_dir)
         if result["added_files"] == 0:
-            await update.message.reply_text(
+            await status.edit_text(
                 f"Файл «{name}» сохранён, но новых чанков не добавлено "
                 f"(всего: {result['total']} чанков).")
         else:
-            await update.message.reply_html(
+            await status.edit_text(
                 f"✅ Файл «{name}» в базе: <b>+{result['added_chunks']} чанков</b>. "
                 f"Всего в коллекции: {result['total']} чанков.\n"
-                f"Задайте вопрос — ответ придёт уже по новой базе.")
+                f"Задайте вопрос — ответ придёт уже по новой базе.",
+                parse_mode="HTML")
     except Exception as e:
         log.error("Ошибка загрузки документа %s: %s", name, e)
         try:
@@ -395,7 +397,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 os.remove(target)  # файл индексации не пережил — в базу не попал
         except OSError:
             pass
-        await update.message.reply_text(
+        await status.edit_text(
             "Не удалось проиндексировать файл — попробуйте ещё раз "
             "через минуту. Ошибка зафиксирована в логах сервера.")
 
@@ -413,13 +415,14 @@ async def post_init(app):
         BotCommand("start", "Старт — приветствие и кнопки"),
         BotCommand("help", "Помощь"),
     ])
-    # Полный список — только в личном чате оператора (scope на chat_id)
+    # Полный список — только в личном чате оператора (scope на chat_id).
+    # /ingest в меню не показываем: пополнение через кнопку и файл в чат,
+    # команда остаётся для редкого случая — файлы положили на сервер напрямую.
     admin_cmds = [
         BotCommand("start", "Старт — приветствие и кнопки"),
         BotCommand("help", "Помощь"),
         BotCommand("stats", "Статистика запросов"),
         BotCommand("logs", "Выгрузка логов (CSV)"),
-        BotCommand("ingest", "Пополнение базы из папки data/ на сервере"),
     ]
     for uid in _admin_ids():
         try:
