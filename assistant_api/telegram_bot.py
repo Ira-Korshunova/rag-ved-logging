@@ -22,7 +22,7 @@ from typing import Dict, List
 from datetime import datetime
 
 from dotenv import load_dotenv
-from telegram import BotCommand, InputFile, Update
+from telegram import BotCommand, BotCommandScopeChat, InputFile, Update
 from telegram.constants import ChatAction
 from telegram.ext import (
     Application, CommandHandler, ContextTypes, MessageHandler, filters,
@@ -76,11 +76,20 @@ def is_admin(user_id: str) -> bool:
     return user_id in admins
 
 
-# Кнопки-команды (ReplyKeyboard, как у преподавателя в уроке)
+# Кнопки-команды (ReplyKeyboard, как у преподавателя в уроке).
+# «📥 Пополнить базу» видит только оператор (клавиатура собирается
+# в cmd_start по ADMIN_USER_IDS); преподавателю кнопка не показывается,
+# а файл от него — вежливый отказ. Пароль в чате не используется:
+# набранный в Telegram пароль остаётся в переписке — доступ по user_id.
 BTN_HELP = "Помощь"
 BTN_STATS = "📊 Статистика"
 BTN_LOGS = "📁 Логи"
-_COMMAND_LABELS = {BTN_HELP, BTN_STATS, BTN_LOGS, "Помощь", "Статистика", "Логи"}
+BTN_INGEST = "📥 Пополнить базу"
+MAX_UPLOAD_BYTES = 2 * 1024 * 1024  # как у веб-панели: до 2 МБ на документ
+_COMMAND_LABELS = {
+    BTN_HELP, BTN_STATS, BTN_LOGS, BTN_INGEST,
+    "Помощь", "Статистика", "Логи", "Пополнить базу",
+}
 
 # Память диалога: последние обмены по каждому чату — для вопросов-
 # продолжений («а про FOB подробнее?»). Держим 3 последних пары;
@@ -135,7 +144,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from telegram import KeyboardButton, ReplyKeyboardMarkup
         rows = [
             [KeyboardButton(BTN_HELP), KeyboardButton(BTN_STATS)],
-            [KeyboardButton(BTN_LOGS)],
+            [KeyboardButton(BTN_LOGS), KeyboardButton(BTN_INGEST)],
         ] if is_admin(user_id) else [
             [KeyboardButton(BTN_HELP)],
         ]
@@ -219,6 +228,8 @@ async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await cmd_start(update, context)
         elif user_message in (BTN_STATS, "Статистика"):
             await stats_response(update)
+        elif user_message == BTN_INGEST:
+            await ingest_prompt(update)
         else:
             await logs_response(update)
         return
@@ -311,6 +322,84 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await stats_response(update, period_days=period)
 
 
+INGEST_PROMPT_TEXT = (
+    "Отправьте файлом .txt или .md (до 2 МБ) в этот чат — я сохраню его "
+    "в базу знаний и проиндексирую.\n\n"
+    "Команда /ingest — проиндексировать заново папку data/ на сервере "
+    "(файлы из неё добавляются без дублей)."
+)
+
+
+async def ingest_prompt(update: Update):
+    """Подсказка по кнопке «📥 Пополнить базу» (только оператор)."""
+    user_id = str(update.effective_user.id)
+    admins = _admin_ids()
+    if admins and user_id not in admins:
+        await update.message.reply_text(
+            "Базу знаний пополняет только оператор ассистента.")
+        return
+    await update.message.reply_text(INGEST_PROMPT_TEXT)
+
+
+async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Документ от оператора: сохранить в DATA_DIR и проиндексировать базу —
+    тот же путь, что у /admin/upload в веб-панели (инкрементальная
+    индексация, по имени файла дубли не пересоздаются)."""
+    user_id = str(update.effective_user.id)
+    admins = _admin_ids()
+    if admins and user_id not in admins:
+        await update.message.reply_text(
+            "Документы в базу знаний принимает только оператор ассистента.")
+        return
+
+    doc = update.effective_message.document
+    name = os.path.basename(doc.file_name or "")
+    # только .txt/.md с вменяемым именем (без путей, скрытых файлов)
+    if (not name or not name.lower().endswith((".txt", ".md"))
+            or name.startswith(".")):
+        await update.message.reply_text(
+            "Загружаются файлы .txt и .md — этот формат для базы не подходит.")
+        return
+    if doc.file_size and doc.file_size > MAX_UPLOAD_BYTES:
+        await update.message.reply_text(
+            "Файл больше 2 МБ — для базы знаний этого больше, чем нужно.")
+        return
+
+    data_dir = os.getenv("DATA_DIR", "data")
+    os.makedirs(data_dir, exist_ok=True)
+    target = os.path.join(data_dir, name)
+    if os.path.exists(target):
+        await update.message.reply_text(
+            f"Файл «{name}» уже в базе. Если нужно заменить — сначала удалите "
+            f"старый через панель /admin на сайте.")
+        return
+
+    await update.message.chat.send_action(action=ChatAction.TYPING)
+    try:
+        tg_file = await doc.get_file()
+        await tg_file.download_to_drive(custom_path=target)
+        result = get_pipeline().vector_store.add_documents_from_folder(data_dir)
+        if result["added_files"] == 0:
+            await update.message.reply_text(
+                f"Файл «{name}» сохранён, но новых чанков не добавлено "
+                f"(всего: {result['total']} чанков).")
+        else:
+            await update.message.reply_html(
+                f"✅ Файл «{name}» в базе: <b>+{result['added_chunks']} чанков</b>. "
+                f"Всего в коллекции: {result['total']} чанков.\n"
+                f"Задайте вопрос — ответ придёт уже по новой базе.")
+    except Exception as e:
+        log.error("Ошибка загрузки документа %s: %s", name, e)
+        try:
+            if os.path.exists(target):
+                os.remove(target)  # файл индексации не пережил — в базу не попал
+        except OSError:
+            pass
+        await update.message.reply_text(
+            "Не удалось проиндексировать файл — попробуйте ещё раз "
+            "через минуту. Ошибка зафиксирована в логах сервера.")
+
+
 async def logs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await logs_response(update)
 
@@ -318,13 +407,28 @@ async def logs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def post_init(app):
     """Меню команд (кнопка с ≡ слева от поля ввода) — регистрируется
     после старта, когда цикл уже крутится и await работает."""
+    # Общее меню (видят все): только нейтральные команды — служебные
+    # не демонстрируем посторонним, отказ по вызову остаётся как раньше
     await app.bot.set_my_commands([
+        BotCommand("start", "Старт — приветствие и кнопки"),
+        BotCommand("help", "Помощь"),
+    ])
+    # Полный список — только в личном чате оператора (scope на chat_id)
+    admin_cmds = [
         BotCommand("start", "Старт — приветствие и кнопки"),
         BotCommand("help", "Помощь"),
         BotCommand("stats", "Статистика запросов"),
         BotCommand("logs", "Выгрузка логов (CSV)"),
-    ])
-    log.info("Меню команд зарегистрировано")
+        BotCommand("ingest", "Пополнение базы из папки data/ на сервере"),
+    ]
+    for uid in _admin_ids():
+        try:
+            await app.bot.set_my_commands(
+                scope=BotCommandScopeChat(chat_id=int(uid)),
+                commands=admin_cmds)
+        except Exception as e:
+            log.warning("Меню оператора %s не задано: %s", uid, e)
+    log.info("Меню команд зарегистрировано (операторов: %d)", len(_admin_ids()))
 
 
 def main():
@@ -339,6 +443,7 @@ def main():
     app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("logs", logs_command))
     app.add_handler(CommandHandler("ingest", ingest_command))
+    app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,
                                    handle_question))
     app.add_error_handler(on_error)
