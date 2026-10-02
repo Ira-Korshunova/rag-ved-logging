@@ -174,7 +174,87 @@ BASE_CSS = """
   .good { color: var(--good); font-weight: 600; }
   .lead { color: var(--muted); }
   a { color: var(--brown); text-underline-offset: 3px; max-width: 100%; }
+
+  /* Кнопка-переключатель темы — правый край верхнего бара, стиль как ссылки */
+  .theme-swap {
+    margin-left: 1.6rem; font: inherit; font-weight: 600; font-size: .8rem;
+    background: transparent; border: 0; color: var(--brown);
+    padding: .2rem .2rem; cursor: pointer; white-space: nowrap; flex: 0 0 auto;
+    text-decoration: none;
+  }
+  .theme-swap:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  /* Тёмная тема — токены Порта (porta.css итогового проекта, data-theme="dark");
+     фон — porta-bg-dark-world.png из Порта (лежит в static/) */
+  :root[data-theme="dark"] {
+    --ink: #e6edf3; --muted: #8b949e; --line: rgba(88, 166, 255, .25);
+    --card: rgba(13, 29, 58, .92); --card-line: rgba(30, 58, 95, .75);
+    --shadow: 0 2px 16px rgba(0, 0, 0, .45);
+    --brown: #58a6ff; --brown-soft: rgba(88, 166, 255, .4);
+    --good: #3fb950; --danger: #f85149; --chip: rgba(11, 26, 53, .85);
+  }
+  :root[data-theme="dark"] body { background: #06132b; }
+  :root[data-theme="dark"] body::before {
+    background-image: url("/static/porta-bg-dark-world.png");
+    opacity: .5; filter: saturate(90%);
+  }
+  :root[data-theme="dark"] textarea { background: rgba(13, 29, 58, .72); }
+  :root[data-theme="dark"] button, :root[data-theme="dark"] .btn {
+    background: #1e3a5f; color: #e6edf3;
+  }
+  :root[data-theme="dark"] button:hover, :root[data-theme="dark"] .btn:hover {
+    background: #24466f;
+  }
+  :root[data-theme="dark"] .badge { background: rgba(11, 26, 53, .7); }
+  :root[data-theme="dark"] td, :root[data-theme="dark"] th {
+    border-color: rgba(88, 166, 255, .18);
+  }
+  :root[data-theme="dark"] th, :root[data-theme="dark"] .reason {
+    background: rgba(88, 166, 255, .1);
+  }
+  :root[data-theme="dark"] .err-row td { background: rgba(248, 81, 73, .08); }
+  :root[data-theme="dark"] .bar, :root[data-theme="dark"] footer {
+    background: rgba(6, 19, 43, .72);
+  }
+  :root[data-theme="dark"] .totals { background: rgba(11, 26, 53, .85); }
+  :root[data-theme="dark"] .p { border-color: rgba(88, 166, 255, .25); }
+  :root[data-theme="dark"] .p.active { background: #1e3a5f; color: #e6edf3; border-color: transparent; }
 """
+
+# Тёмная тема: применить сохранённый выбор (localStorage ragved_theme)
+# и связать кнопку .theme-swap. Скрипт общий для всех шаблонов;
+# на страницах без бара кнопки нет — тема всё равно применяется.
+THEME_JS = """<script>
+(function () {
+  var KEY = "ragved_theme";
+  var root = document.documentElement;
+  try {
+    var t = localStorage.getItem(KEY);
+    if (t === "dark") root.setAttribute("data-theme", "dark");
+  } catch (e) {}
+  var apply = function () {
+    var b = document.querySelector(".theme-swap");
+    if (!b) return;
+    if (!b.dataset.wired) {
+      b.dataset.wired = "1";
+      b.addEventListener("click", function () {
+        var dark = root.getAttribute("data-theme") !== "dark";
+        if (dark) root.setAttribute("data-theme", "dark");
+        else root.removeAttribute("data-theme");
+        b.textContent = dark ? "\\u2600\\uFE0F" : "\\uD83C\\uDF19";
+        b.title = dark ? "Светлая тема" : "Тёмная тема";
+        try { localStorage.setItem(KEY, dark ? "dark" : "light"); } catch (e) {}
+      });
+    }
+    var dark = root.getAttribute("data-theme") === "dark";
+    b.textContent = dark ? "\\u2600\\uFE0F" : "\\uD83C\\uDF19";
+    b.title = dark ? "Светлая тема" : "Тёмная тема";
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", apply);
+  } else { apply(); }
+})();
+</script>"""
 TABLE_CSS = """
   .tiles {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
@@ -288,7 +368,7 @@ PAGE = """<!doctype html>
     padding: 0 1.2rem; color: var(--muted); font-size: .8rem; }
   footer .r { text-align: right; }
   @media (max-width: 640px) { main { padding: 1rem; } }
-</style>
+</style>""" + THEME_JS + """
 </head>
 <body>
 <div class="bar">
@@ -296,6 +376,7 @@ PAGE = """<!doctype html>
     <h1>ИИ-ассистент для ВЭД</h1>
     <a href="/about">Как работает</a>
     <a href="/admin">Панель оператора</a>
+    <button class="theme-swap" type="button">&#127769;</button>
   </div>
 </div>
 
@@ -386,7 +467,7 @@ ABOUT_PAGE = """<!doctype html>
   ol, ul { margin: .3rem 0; padding-left: 1.3rem; }
   li { margin-bottom: .35rem; }
   h2 { font-size: 1.02rem; margin: 1.5rem 0 .45rem; }
-</style>
+</style>""" + THEME_JS + """
 </head>
 <body>
 <div class="brand">
@@ -456,7 +537,7 @@ LOGIN_PAGE = """<!doctype html>
   .action-row button:hover, .action-row a:hover {
     text-decoration: underline; text-underline-offset: 3px;
   }
-</style></head>
+</style>""" + THEME_JS + """</head>
 <body>
 <div class="wrap">
 <h1 style="margin-bottom: .6rem; text-align: center">Панель оператора</h1>
@@ -580,7 +661,7 @@ ADMIN_PAGE = """<!doctype html>
     html, body { height: auto; body-scroll: auto; }
     body { height: auto; min-height: 100vh; }
   }
-</style></head>
+</style>""" + THEME_JS + """</head>
 <body>
 <div class="bar">
   <div class="bar-in">
@@ -589,6 +670,7 @@ ADMIN_PAGE = """<!doctype html>
     <span class="periods">{% for p, label in period_options %}<a class="p {{ 'active' if p == period else '' }}" href="/admin?period={{ p }}">{{ label }}</a>{% endfor %}</span>
     <a href="/">ассистент</a>
     <a href="/admin?logout=1">выйти</a>
+    <button class="theme-swap" type="button">&#127769;</button>
   </div>
 </div>
 
@@ -685,7 +767,7 @@ STATS_PAGE = """<!doctype html>
   .brand { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
   h1 { font-size: 1.35rem; }
   h2 { font-size: 1.02rem; margin: 1.7rem 0 .55rem; }
-</style>
+</style>""" + THEME_JS + """
 </head>
 <body>
 <div class="brand">
