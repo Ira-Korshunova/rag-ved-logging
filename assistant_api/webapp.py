@@ -21,6 +21,7 @@ import os
 import time
 from collections import deque
 from functools import wraps
+from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
 from flask import (Flask, request, render_template_string, redirect,
@@ -45,6 +46,12 @@ MAX_UPLOAD_BYTES = 2 * 1024 * 1024
 
 _pipeline = None
 _ingesting = False   # замок: одна индексация одновременно (1 воркер gunicorn)
+
+
+def _upload_redir(key: str, text: str):
+    """Redirect с сообщением: raw-текст в query-string ломается («+» декодируется
+    как пробел, «%» тоже опасен) — поэтому всегда quote_plus."""
+    return redirect(f"/admin?{key}={quote_plus(text)}")
 
 
 def get_pipeline() -> RAGPipeline:
@@ -751,6 +758,23 @@ if (doc) doc.addEventListener('change', function () {
   document.getElementById('fname').textContent =
     doc.files.length ? doc.files[0].name : 'файл не выбран';
 });
+// фидбек нажатия: кнопка дизейблится на время индексации + строка ожидания,
+// чтобы повторного клика «не нажимается» не случилось и документ не грузился дважды
+var upform = doc && doc.closest && doc.closest('form');
+if (doc && upform) upform.addEventListener('submit', function () {
+  var btn = upform.querySelector('button[type="submit"], button');
+  if (btn) { btn.disabled = true; btn.textContent = 'Индексирую…'; }
+  var note = document.createElement('p');
+  note.className = 'muted';
+  note.style.fontSize = '.8rem';
+  note.textContent = 'Индексирую «' + (doc.files.length ? doc.files[0].name : '') +
+    '» — обычно это секунды; страницу не закрывайте.';
+  upform.parentNode.insertBefore(note, upform);
+});
+// после редиректа с сообщением — показать его в кадре (карточка могла быть ниже_fold)
+var upmsg = document.querySelector('.msg, .bad-msg');
+if (upmsg && upmsg.scrollIntoView)
+  upmsg.scrollIntoView({ block: 'center' });
 </script>
 </body></html>
 """
@@ -949,40 +973,40 @@ def admin_upload():
         size = upload.tell()
         upload.seek(0)
         if not name.lower().endswith(ALLOWED_EXTENSIONS):
-            return redirect("/admin?upload_err=" +
-                            "Загружаются файлы .txt и .md — этот формат для базы не подходит.")
+            return _upload_redir("upload_err",
+                "Загружаются файлы .txt и .md — этот формат для базы не подходит.")
         if size == 0 or size > MAX_UPLOAD_BYTES:
-            return redirect("/admin?upload_err=" +
-                            "Файл пустой либо больше 2 МБ (для конспекта этого больше, чем нужно).")
+            return _upload_redir("upload_err",
+                "Файл пустой либо больше 2 МБ (для конспекта этого больше, чем нужно).")
 
         target = os.path.join(DATA_DIR, name)
         if os.path.exists(target):
-            return redirect("/admin?upload_err=" +
-                            f"Файл «{name}» уже в базе. Если нужно заменить — сначала удалите старый с сервера.")
+            return _upload_redir("upload_err",
+                f"Файл «{name}» уже в базе. Если нужно заменить — сначала удалите старый с сервера.")
         upload.save(target)
 
         if _ingesting:
-            return redirect("/admin?upload_err=" +
-                            "Файл сохранён, но индексация занята — повторите через минуту.")
+            return _upload_redir("upload_err",
+                "Файл сохранён, но индексация занята — повторите через минуту.")
 
         _ingesting = True
         try:
             result = get_pipeline().vector_store.add_documents_from_folder(DATA_DIR)
             if result["added_files"] == 0:
-                return redirect("/admin?upload=" +
-                                f"Файл «{name}» уже был в базе — новых чанков не добавлено ({result['total']} чанков всего).")
-            msg = (f"✅ База пополнена: {result['added_files']} новый(ых) файл(ов), "
-                   f"+{result['added_chunks']} чанков. Всего в коллекции: {result['total']}. "
+                return _upload_redir("upload",
+                    f"Файл «{name}» уже был в базе — новых чанков не добавлено ({result['total']} чанков всего).")
+            msg = (f"✅ Документ «{name}» успешно проиндексирован: "
+                   f"+{result['added_chunks']} чанков. Всего в базе: {result['total']}. "
                    f"Задайте вопрос в форме «Спросить» — ответ придёт уже по новой базе.")
         except Exception as e:
             os.remove(target)  # неудачная индексация — файл в базу не вписался
-            return redirect("/admin?upload_err=" +
-                            f"Индексация «{name}» не удалась: {e}. Файл удалён.")
+            return _upload_redir("upload_err",
+                f"Индексация «{name}» не удалась: {e}. Файл удалён.")
         finally:
             _ingesting = False
-        return redirect("/admin?upload=" + msg)
+        return _upload_redir("upload", msg)
 
-    return redirect("/admin?upload_err=" + "Файл не выбран.")
+    return _upload_redir("upload_err", "Файл не выбран.")
 
 
 # --------------------------------------------------------------- прежняя статистика
